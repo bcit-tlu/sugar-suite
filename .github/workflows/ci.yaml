@@ -78,13 +78,15 @@ jobs:
   # ── Helm chart → OCI registry (main push) ─────────────────
   #
   # Publishes the chart with the same RC version that the image
-  # received, so chart and app tags stay in lockstep.  Only runs
-  # on main pushes.  Release-time chart publishing is handled by
-  # helm-publish.yaml.
+  # received so the chart and app tags stay in lockstep.  Only
+  # runs on main pushes when the component actually changed.
+  # Release-time chart publishing is handled by helm-publish.yaml.
 
   helm-publish:
     needs: [helm-lint, build-sugar-suite]
-    if: github.event_name != 'pull_request'
+    if: >-
+      github.event_name != 'pull_request'
+      && needs.build-sugar-suite.outputs.rc_version != ''
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -119,11 +121,6 @@ jobs:
           VERSION: ${{ needs.build-sugar-suite.outputs.rc_version }}
         run: |
           set -euo pipefail
-
-          if [[ -z "${VERSION}" ]]; then
-            echo "No RC version (no changes); skipping."
-            exit 0
-          fi
 
           OCI_BASE="oci://${{ env.REGISTRY }}/${{ github.repository }}/charts"
           IMAGE_BASE="${{ env.REGISTRY }}/${{ github.repository }}/charts"
