@@ -40,6 +40,9 @@ jobs:
           curl -sSL https://github.com/yannh/kubeconform/releases/download/v0.6.7/kubeconform-linux-amd64.tar.gz \
             | sudo tar xz -C /usr/local/bin kubeconform
 
+      - name: Fetch chart dependencies
+        run: helm dependency update charts/
+
       - name: Lint, template-render & validate chart
         run: |
           helm lint charts/
