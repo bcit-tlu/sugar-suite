@@ -56,7 +56,7 @@ jobs:
           set -euo pipefail
 
           VERSION="${{ steps.parse.outputs.version }}"
-          CHART_DIR="charts/tech-ops-docs"
+          CHART_DIR="charts"
           DEST_DIR="/tmp/charts"
 
           mkdir -p "${DEST_DIR}"
@@ -69,5 +69,5 @@ jobs:
             -d "${DEST_DIR}"
 
           helm push \
-            "${DEST_DIR}/tech-ops-docs-${VERSION}.tgz" \
+            "${DEST_DIR}/sugar-suite-${VERSION}.tgz" \
             "oci://${{ env.REGISTRY }}/${{ github.repository }}/charts"

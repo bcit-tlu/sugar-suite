@@ -40,19 +40,17 @@ jobs:
           curl -sSL https://github.com/yannh/kubeconform/releases/download/v0.6.7/kubeconform-linux-amd64.tar.gz \
             | sudo tar xz -C /usr/local/bin kubeconform
 
-      - name: Lint, template-render & validate all charts
+      - name: Fetch chart dependencies
+        run: helm dependency update charts/
+
+      - name: Lint, template-render & validate chart
         run: |
-          for chart in charts/*/; do
-            name=$(basename "$chart")
-            echo "::group::${name}"
-            helm lint "$chart"
-            helm template test "$chart" \
-              | kubeconform -strict -summary \
-                  -schema-location default \
-                  -schema-location 'https://raw.githubusercontent.com/datreeio/CRDs-catalog/main/{{.Group}}/{{.ResourceKind}}_{{.ResourceAPIVersion}}.json' \
-                  -ignore-missing-schemas
-            echo "::endgroup::"
-          done
+          helm lint charts/
+          helm template test charts/ \
+            | kubeconform -strict -summary \
+                -schema-location default \
+                -schema-location 'https://raw.githubusercontent.com/datreeio/CRDs-catalog/main/{{.Group}}/{{.ResourceKind}}_{{.ResourceAPIVersion}}.json' \
+                -ignore-missing-schemas
 
   # ── Container image ──────────────────────────────────────
   #
@@ -65,7 +63,7 @@ jobs:
   # protection (required status check) rather than delaying or
   # blocking image builds.
 
-  build-tech-ops-docs:
+  build-sugar-suite:
     uses: bcit-tlu/.github/.github/workflows/oci-build.yaml@main
     permissions:
       contents: read
@@ -74,8 +72,8 @@ jobs:
       security-events: write
       actions: read            # Required by codeql-action/upload-sarif on private repos
     with:
-      component: tech-ops-docs
-      image_name: tech-ops-docs
+      component: sugar-suite
+      image_name: sugar-suite
       context: .
       tag_prefix: "v"
     secrets: inherit

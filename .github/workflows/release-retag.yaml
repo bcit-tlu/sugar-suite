@@ -87,7 +87,7 @@ jobs:
       - name: Wait for source image
         if: steps.parse.outputs.match == 'true'
         env:
-          IMAGE: ${{ env.REGISTRY }}/${{ github.repository }}/tech-ops-docs
+          IMAGE: ${{ env.REGISTRY }}/${{ github.repository }}/sugar-suite
           SHA: ${{ steps.sha.outputs.sha }}
         run: |
           SRC="${IMAGE}:sha-${SHA}"
@@ -113,7 +113,7 @@ jobs:
         id: retag
         if: steps.parse.outputs.match == 'true'
         run: |
-          IMAGE=${{ env.REGISTRY }}/${{ github.repository }}/tech-ops-docs
+          IMAGE=${{ env.REGISTRY }}/${{ github.repository }}/sugar-suite
           SHA=${{ steps.sha.outputs.sha }}
           VERSION=${{ steps.parse.outputs.version }}
 
