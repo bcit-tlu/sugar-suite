@@ -6,11 +6,11 @@
   "packages": {
     ".": {
       "release-type": "simple",
-      "component": "tech-ops-docs",
+      "component": "sugar-suite",
       "extra-files": [
         {
           "type": "generic",
-          "path": "charts/tech-ops-docs/Chart.yaml"
+          "path": "charts/Chart.yaml"
         }
       ]
     }
