@@ -1,18 +1,6 @@
 apiVersion: v2
-appVersion: 1.1.17
-description: Sugar-Suite is a "Framework Factory" used to produce customized stylesheets designed for building online courses in HTML.
-home: https://sugar-suite.ltc.bcit.ca
-icon: https://course-production.ltc.bcit.ca/favicon.ico
-maintainers:
-  - email: ltc_techops@bcit.ca
-    name: BCIT LTC
-    url: https://www.bcit.ca/learning-teaching-centre/
 name: sugar-suite
-sources:
-  - https://github.com/bcit-ltc/
-  - https://github.com/bcit-ltc/sugar-suite
-version: 1.1.17
-dependencies:
-  - name: apps-common
-    version: ">=0.3.4"
-    repository: https://bcit-ltc.github.io/helm-charts
+description: Sugar Suite — static site served by nginx
+type: application
+version: 0.1.0
+appVersion: "0.4.0" # x-release-please-version

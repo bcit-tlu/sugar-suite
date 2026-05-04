@@ -1,301 +1,43 @@
-# SPDX-License-Identifier: MPL-2.0
+replicaCount: 1
 
-# Global configuration settings
-global:
-  # -- Authoritative name
-  name: "sugar-suite"
-  imagePullSecrets: []
-  revisionHistoryLimit: 3
-  progressDeadlineSeconds: 600
-# -- Configuration for the service account
-# @default -- `{}`
-serviceAccount:
-  # -- Enable or disable service account creation.
-  create: true
-  # -- Name of the service account to create. If empty uses global.name
-  name: ""
-  # Extra annotations to attach to the service account
-  annotations: {}
-# -- Enables a service for the app
-# @default -- `{}`
+image:
+  repository: ghcr.io/bcit-tlu/sugar-suite/sugar-suite
+  pullPolicy: IfNotPresent
+  tag: "" # Defaults to .Chart.AppVersion
+
 service:
-  # -- Enable or disable service components.
-  enabled: true
-  # -- Service type: by default, connect to the app using an internal cluster IP
   type: ClusterIP
-  # -- Port on which the app is listening
   port: 8080
-  # -- Target port to which the service should be mapped to
-  targetPort: 8080
-  # Extra annotations to attach to the service
-  annotations: {}
-# -- Security context for the pod template<br>
-# @default -- 
-#   &nbsp;&nbsp;`runAsNonRoot: true`<br>
-#   &nbsp;&nbsp;`runAsGroup: 101`<br>
-#   &nbsp;&nbsp;`runAsUser: 101`<br>
-#   &nbsp;&nbsp;`fsGroup: 101`<br>
-# - Set to `null` to disable
-securityContext:
-  pod: {}
-# -- Main "frontend" configuration
-# @default -- `{}`
-frontend:
-  # -- Enable or disable frontend components.
-  enabled: true
-  # -- The name of the frontend container to create. If empty uses "frontend"
-  name: sugar-suite
-  image:
-    # -- Frontend image default pull policy
-    pullPolicy: IfNotPresent
-    # -- Frontend image registry
-    registry: "ghcr.io"
-    # -- Frontend image repository
-    repository: "bcit-ltc/sugar-suite"
-    # -- Frontend image tag
-    tag: "1.1.17"
-  # Extra annotations to attach to the frontend
-  # @default -- `{}`
-  annotations: {}
-  # -- Add a checksum annotation to the server pods that is a hash
-  #    of the configuration. Can be used to identify configuration changes.
-  includeConfigAnnotation: false
-  # -- Security context for the frontend container. Default:<br>
-  # &nbsp;&nbsp;`readOnlyRootFilesystem: true`<br>
-  # &nbsp;&nbsp;`allowPrivilegeEscalation: false`<br>
-  # &nbsp;&nbsp;`capabilities:`<br>
-  # &nbsp;&nbsp;&nbsp;&nbsp;`drop`:<br>
-  # &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;`- ALL`<br>
-  # - Set to `null` to disable
-  securityContext:
-    container: {}
-  resources:
-    # -- Resource requests mapped directly to the value of
-    #    the resources field for a PodSpec.
-    requests:
-      memory: 64Mi
-      cpu: 100m
-    # -- Resource limits mapped directly to the value of
-    #    the resources field for a PodSpec.
-    limits:
-      memory: 256Mi
-      cpu: 250m
-  # -- Port on which the frontend is listening
-  port: 8080
-  # -- List of extra environment variables that are set literally.
-  # @default -- `[]`
-  extraEnvVars: []
-  # - API_URL: "https://app.example.com/api"
-  # -- configEnvs create ConfigMaps that are passed to containers using envFrom
-  # @default -- `[]`
-  configEnvs: []
-  # - name: "special-config"
-  # -- volumeMounts for the frontend container that also create corresponding `emptyDir` volumes in the pod.
-  # @default -- `[{name: tmp, mountPath: /tmp}]`
-  emptyDirMounts:
-    - name: tmp
-      mountPath: /tmp
-  # - name: shared-data
-  #   mountPath: /var/www/html
-  # -- volumeMounts to be added as configMaps. Requires matching configs.
-  # @default -- `[]`
-  configMounts: []
-  # - name: php-ini
-  #   mountPath: /usr/local/etc/php/conf.d
-  #   data:
-  #     php.ini: |-
-  #       upload_max_filesize=4G
-  #       post_max_size=6G
-  #       memory_limit=8G
-  # -- volumeMounts to be added as secrets
-  # @default -- `[]`
-  storageMounts:
-  # - name: data-storage
-  #   size: 10Gi
-  # # -- Location where the PVC will be mounted.
-  #   mountPath: "/app/data"
-  # # -- Name of the storage class to use. If null it will use the
-  # # configured default Storage Class.
-  #   storageClass: null
-  # # -- Access Mode of the storage device being used for the PVC
-  #   accessMode: ReadWriteOnce
-  secretMounts: []
-  # # Credentials to access the app internal management portal (local account)
-  # - name: app-internal-credentials # volume name (must be DNS-1123 compliant)
-  #   secretName: app-internal-credentials # refers to existing Secret in the same namespace
-  #   mountPath: /etc/secrets
-  #   items: # optional: map specific keys to paths (and per-file mode)
-  #     - key: ADMIN_USERNAME
-  #       path: app-internal-credentials/ADMIN_USERNAME
-  # Defines custom livenessProbe settings
-  livenessProbe:
-    # -- Enables livenessProbe
-    enabled: false
-    # exec is preferred to httpGet (path) as the livenessProbe handler.
-    execCommand: []
-    # - /bin/sh
-    # - -c
-    # - <command>
-    # Path for the httpGet handler
-    path: "/"
-    # Port number on which livenessProbe will be checked if httpGet is used as the livenessProbe handler
-    port: 8080
-    # When a probe fails, Kubernetes will try failureThreshold times before giving up
-    failureThreshold: 2
-    # Number of seconds after the container has started before probe initiates
-    initialDelaySeconds: 10
-    # How often (in seconds) to perform the probe
-    periodSeconds: 5
-    # Minimum consecutive successes for the probe to be considered successful after having failed
-    successThreshold: 1
-    # Number of seconds after which the probe times out.
-    timeoutSeconds: 5
-  # Defines custom readinessProbe settings
-  readinessProbe:
-    # -- Enables readinessProbe
-    enabled: false
-    # If you need to use a http path instead of the default exec
-    # path: /health?standbyok=true
-    # Port number on which readinessProbe will be checked.
-    port: 8080
-    # When a probe fails, Kubernetes will try failureThreshold times before giving up
-    failureThreshold: 2
-    # Number of seconds after the container has started before probe initiates
-    initialDelaySeconds: 5
-    # How often (in seconds) to perform the probe
-    periodSeconds: 10
-    # Minimum consecutive successes for the probe to be considered successful after having failed
-    successThreshold: 1
-    # Number of seconds after which the probe times out.
-    timeoutSeconds: 5
-  # Defines custom startupProbe settings
-  startupProbe:
-    # -- Enables startupProbe
-    enabled: false
-    # When a probe fails, Kubernetes will try failureThreshold times before giving up
-    failureThreshold: 12
-    # Number of seconds after the container has started before probe initiates
-    initialDelaySeconds: 5
-    # How often (in seconds) to perform the probe
-    periodSeconds: 5
-    # Minimum consecutive successes for the probe to be considered successful after having failed
-    successThreshold: 1
-    # Number of seconds after which the probe times out.
-    timeoutSeconds: 5
-# -- Main "backend" configuration
-# @default -- `{}`
-processor:
-  # -- Enable or disable processor components.
-  enabled: false
-  image:
-    # -- Processor image default pull policy
-    pullPolicy: IfNotPresent
-    # -- Processor imageregistry
-    registry: "ghcr.io"
-    # -- Processor image repository
-    repository: ""
-    # -- Processor image tag
-    tag: ""
-  # -- Number of replicas for the processor
-  replicas: 1
-  # -- Port on which processor is listening
-  port: 8000
-  # -- List of extra environment variables that are set literally.
-  # @default -- `[]`
-  extraEnvVars: []
-  # - API_URL: "https://app.example.com/api"
-  # Extra annotations to attach to the processor container
-  # @default -- `{}`
-  annotations: {}
-  # -- Create `ConfigMap` resources that are passed to containers using envFrom
-  # @default -- `[]`
-  configEnvs: []
-  # - name: "special-config"
-  # -- volumeMounts for the processor container that also create corresponding emptyDir volumes in the pod.
-  # @default -- `[]`
-  emptyDirMounts: []
-  # - name: shared-data
-  #   mountPath: /var/www/html
-  # -- Security context for the processor container. Default:<br>
-  # &nbsp;&nbsp;`readOnlyRootFilesystem: true`<br>
-  # &nbsp;&nbsp;`allowPrivilegeEscalation: false`<br>
-  # &nbsp;&nbsp;`capabilities:`<br>
-  # &nbsp;&nbsp;&nbsp;&nbsp;`drop`:<br>
-  # &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;`- ALL`<br>
-  # - Set to `null` to disable
-  securityContext:
-    container: null
-  # -- volumeMounts to be added as configMaps. Requires matching configs.
-  # @default -- `[]`
-  configMounts: []
-  # - name: php-ini
-  #   mountPath: /usr/local/etc/php/conf.d
-  #   data:
-  #     php.ini: |-
-  #       upload_max_filesize=4G
-  #       post_max_size=6G
-  #       memory_limit=8G
-  # Configuration for persistent volume claims
-  # @default -- `[]`
-  storageMounts: []
-  # - name: data-storage
-  #   size: 10Gi
-  # # -- Location where the PVC will be mounted.
-  #   mountPath: "/app/data"
-  # # -- Name of the storage class to use. If null it will use the
-  # # configured default Storage Class.
-  #   storageClass: null
-  # # -- Access Mode of the storage device being used for the PVC
-  #   accessMode: ReadWriteOnce
-  # -- volumeMounts to be added as secrets
-  # @default -- `[]`
-  secretMounts: []
-  # # Credentials to access the app internal management portal (local account)
-  # - name: app-internal-credentials # volume name (must be DNS-1123 compliant)
-  #   secretName: app-internal-credentials # refers to existing Secret in the same namespace
-  #   mountPath: /etc/secrets
-  #   items: # optional: map specific keys to paths (and per-file mode)
-  #     - key: ADMIN_USERNAME
-  #       path: app-internal-credentials/ADMIN_USERNAME
-# -- Creates an ingress for external access
-# @default -- `{}`
+
 ingress:
   enabled: false
-  # -- Default domain for the ingress
-  # @default -- `""`
-  defaultDomain: ""
-  # Optional: "nginx", "traefik", etc. If empty, cluster default is used.
-  ingressClassName: ""
-  # Host to expose. If empty, defaults to "<global.name>.<defaultDomain>"
-  host: ""
-  # Annotations applied to the Ingress
+  className: ""
   annotations: {}
-  # -- TLS secret to use.
-  # Sets `<spec.tls.hosts>` to `<global.name>.<defaultDomain>`
-  # @default -- `""`
-  tlsSecret: ""
-  # -- Extra path rules to render verbatim before the default "/".
-  extraPaths: []
-  #   - path: /api
-  #     pathType: Prefix
-  #     backend:
-  #       service:
-  #         name: my-api
-  #         port:
-  #           number: 3000
-  # -- Path type for the default route ("/")
-  pathType: Prefix
-# Unconfigured options
-# autoscaling:
-#   enabled: false
-#   minReplicas: 2
-#   maxReplicas: 5
-#   targetCPUUtilizationPercentage: 80
-# pdb:
-#   enabled: false
-#   minAvailable: 1
-# networkPolicy:
-#   enabled: false
+  hosts:
+    - host: sugar-suite.ltc.bcit.ca
+      paths:
+        - path: /
+          pathType: Prefix
+  tls: []
 
-initContainer:
-  image: {}
+resources:
+  limits:
+    cpu: 100m
+    memory: 128Mi
+  requests:
+    cpu: 50m
+    memory: 64Mi
+
+# ── High-availability / topology spreading ────────────────────
+# When enabled, adds a required pod anti-affinity rule so that no two
+# replicas land in the same topology zone (e.g. datacenter).
+# Requires nodes to be labeled with the chosen topologyKey.
+# NOTE: replicaCount must not exceed the number of distinct zones,
+# otherwise excess pods will remain Pending (hard scheduling constraint).
+zoneAntiAffinity:
+  enabled: false
+  topologyKey: topology.kubernetes.io/zone
+
+nodeSelector: {}
+tolerations: []
+affinity: {}
