@@ -1,8 +1,3 @@
-serviceAccount:
-  create: true
-  annotations: {}
-  name: ""
-
 replicaCount: 1
 
 image:
@@ -14,15 +9,16 @@ service:
   type: ClusterIP
   port: 8080
 
+serviceAccount:
+  create: true
+  annotations: {}
+  name: ""
+
 ingress:
   enabled: false
   className: ""
   annotations: {}
-  hosts:
-    - host: sugar-suite.ltc.bcit.ca
-      paths:
-        - path: /
-          pathType: Prefix
+  hosts: []
   tls: []
 
 probes:

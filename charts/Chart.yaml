@@ -1,6 +1,6 @@
 apiVersion: v2
 name: sugar-suite
-description: Sugar Suite — static site served by nginx
+description: Sugar Suite - A CSS/JS authoring framework.
 type: application
 version: 0.1.0
 appVersion: "0.4.0" # x-release-please-version

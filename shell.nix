@@ -2,12 +2,8 @@
 
 pkgs.mkShell {
   packages = [
-    pkgs.python315
-    # pkgs.python311Packages.pip  # REMOVE THIS LINE!
+    pkgs.nodejs_24
   ];
   shellHook = ''
-    python -m venv .venv
-    source .venv/bin/activate
-    pip install zensical
   '';
 }
