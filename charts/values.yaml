@@ -25,6 +25,16 @@ ingress:
           pathType: Prefix
   tls: []
 
+probes:
+  liveness:
+    path: /healthz
+    initialDelaySeconds: 5
+    periodSeconds: 10
+  readiness:
+    path: /healthz/ready
+    initialDelaySeconds: 3
+    periodSeconds: 5
+
 resources:
   limits:
     cpu: 100m
