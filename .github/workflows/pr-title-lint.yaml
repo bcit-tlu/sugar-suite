@@ -1,0 +1,77 @@
+name: pr-title-lint
+
+# Gate non-conventional PR titles at the merge boundary so unparseable
+# squash-merge commits can't land on main and silently starve
+# release-please of the feat:/fix:/BREAKING signals it uses to open
+# release PRs.
+
+on:
+  pull_request_target:
+    types: [opened, edited, reopened, synchronize]
+    branches: [main]
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    if: github.event.pull_request.user.type != 'Bot'
+    steps:
+      - id: lint
+        uses: amannn/action-semantic-pull-request@v5
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          types: |
+            feat
+            fix
+            docs
+            style
+            refactor
+            perf
+            test
+            build
+            ci
+            chore
+            revert
+          requireScope: false
+          subjectPattern: ^(?![A-Z]).+$
+          subjectPatternError: |
+            The subject "{subject}" in PR title "{title}" must start with a
+            lowercase letter (imperative mood, no trailing period). See
+            CONTRIBUTING.md for examples.
+
+      - name: Post failure explainer comment
+        if: failure() && steps.lint.outcome == 'failure'
+        uses: marocchino/sticky-pull-request-comment@v2
+        with:
+          header: pr-title-lint
+          message: |
+            ## PR title does not match Conventional Commits
+
+            **Why this matters (tl;dr)** — release-please reads PR titles on `main` to decide whether to cut a release, what version bump to apply, and how to group CHANGELOG entries. A title that doesn't parse is silently dropped; no release PR opens, no error, workflow still exits 0.
+
+            **Required structure**
+
+            ```
+            <type>[optional scope][!]: <subject>
+            ```
+
+            - `<type>` — `feat` / `fix` / `docs` / `style` / `refactor` / `perf` / `test` / `build` / `ci` / `chore` / `revert`
+            - `<subject>` — lowercase first letter, imperative mood, no trailing period
+            - add `!` (or `BREAKING CHANGE:` in the body) for breaking changes
+
+            **Good** — `feat: add search page`, `fix: correct broken nav link`, `ci: tighten workflow permissions`
+
+            **Bad** — `Add search page` (no type), `feat: Add search page` (uppercase subject)
+
+            Edit the PR title in the GitHub UI — the check re-runs automatically within seconds, no push needed.
+
+      - name: Clear failure explainer on success
+        if: success() && steps.lint.outcome == 'success'
+        uses: marocchino/sticky-pull-request-comment@v2
+        with:
+          header: pr-title-lint
+          delete: true

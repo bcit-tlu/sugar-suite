@@ -1,0 +1,142 @@
+name: release-images
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      tag_name:
+        description: "Release tag to retag (e.g. v1.2.3)"
+        required: true
+        type: string
+
+env:
+  REGISTRY: ghcr.io
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+permissions:
+  contents: read
+  packages: write
+  id-token: write          # Cosign keyless (Sigstore OIDC)
+
+jobs:
+  retag:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Parse release tag
+        id: parse
+        env:
+          TAG: ${{ inputs.tag_name || github.event.release.tag_name }}
+        run: |
+          if [[ "$TAG" =~ ^v([0-9]+)\.([0-9]+)\.([0-9]+)$ ]]; then
+            echo "version=${BASH_REMATCH[1]}.${BASH_REMATCH[2]}.${BASH_REMATCH[3]}" >> $GITHUB_OUTPUT
+            echo "match=true" >> $GITHUB_OUTPUT
+          else
+            echo "match=false" >> $GITHUB_OUTPUT
+          fi
+
+      - uses: actions/checkout@v6
+        if: steps.parse.outputs.match == 'true'
+        with:
+          ref: ${{ inputs.tag_name || github.event.release.tag_name }}
+          fetch-depth: 0
+          fetch-tags: true
+
+      - name: Check if this is the highest stable release
+        id: highest
+        if: steps.parse.outputs.match == 'true'
+        shell: bash
+        run: |
+          VERSION=${{ steps.parse.outputs.version }}
+
+          # List all stable (non-prerelease) tags, strip prefix, sort by
+          # semver, take the highest.
+          HIGHEST=$(git tag -l "v[0-9]*.[0-9]*.[0-9]*" \
+            | sed "s/^v//" \
+            | grep -v -- '-' \
+            | sort -V \
+            | tail -n1)
+
+          if [[ "${VERSION}" == "${HIGHEST}" ]]; then
+            echo "is_highest=true" >> "$GITHUB_OUTPUT"
+            echo "${VERSION} is the highest stable release — will tag as latest."
+          else
+            echo "is_highest=false" >> "$GITHUB_OUTPUT"
+            echo "${VERSION} is NOT the highest stable release (highest: ${HIGHEST}) — skipping latest tag."
+          fi
+
+      - name: Resolve tag commit SHA
+        if: steps.parse.outputs.match == 'true'
+        id: sha
+        env:
+          TAG: ${{ inputs.tag_name || github.event.release.tag_name }}
+        run: |
+          SHA=$(git rev-list -n1 "${TAG}")
+          echo "sha=${SHA}" >> $GITHUB_OUTPUT
+
+      - uses: docker/setup-buildx-action@v4
+        if: steps.parse.outputs.match == 'true'
+
+      - uses: docker/login-action@v4
+        if: steps.parse.outputs.match == 'true'
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Wait for source image
+        if: steps.parse.outputs.match == 'true'
+        env:
+          IMAGE: ${{ env.REGISTRY }}/${{ github.repository }}/tech-ops-docs
+          SHA: ${{ steps.sha.outputs.sha }}
+        run: |
+          SRC="${IMAGE}:sha-${SHA}"
+          DELAY=10
+          MAX_DELAY=60
+          DEADLINE=$(( $(date +%s) + 1800 ))
+          while :; do
+            if docker buildx imagetools inspect "${SRC}" >/dev/null 2>&1; then
+              echo "Source image ${SRC} is available."
+              break
+            fi
+            if [[ $(date +%s) -ge $DEADLINE ]]; then
+              echo "::error::Timed out after 30m waiting for ${SRC} (CI build for $SHA did not publish)."
+              exit 1
+            fi
+            echo "Source image ${SRC} not yet available; retrying in ${DELAY}s..."
+            sleep "$DELAY"
+            DELAY=$(( DELAY * 2 ))
+            if (( DELAY > MAX_DELAY )); then DELAY=$MAX_DELAY; fi
+          done
+
+      - name: Retag (no pull)
+        id: retag
+        if: steps.parse.outputs.match == 'true'
+        run: |
+          IMAGE=${{ env.REGISTRY }}/${{ github.repository }}/tech-ops-docs
+          SHA=${{ steps.sha.outputs.sha }}
+          VERSION=${{ steps.parse.outputs.version }}
+
+          TAGS="-t ${IMAGE}:${VERSION}"
+          if [[ "${{ steps.highest.outputs.is_highest }}" == "true" ]]; then
+            TAGS="${TAGS} -t ${IMAGE}:latest"
+          fi
+
+          docker buildx imagetools create \
+            ${TAGS} \
+            ${IMAGE}:sha-${SHA}
+
+          # Capture digest for Cosign signing.
+          DIGEST=$(docker buildx imagetools inspect "${IMAGE}:${VERSION}" --format '{{.Manifest.Digest}}')
+          echo "digest=${DIGEST}" >> "$GITHUB_OUTPUT"
+          echo "image=${IMAGE}" >> "$GITHUB_OUTPUT"
+
+      # ── Sign with Cosign (keyless / Sigstore) ──────────────
+      - uses: sigstore/cosign-installer@v3
+        if: steps.parse.outputs.match == 'true'
+
+      - name: Sign release image
+        if: steps.parse.outputs.match == 'true'
+        run: |
+          cosign sign --yes \
+            ${{ steps.retag.outputs.image }}@${{ steps.retag.outputs.digest }}

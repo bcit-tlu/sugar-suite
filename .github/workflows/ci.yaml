@@ -1,0 +1,81 @@
+name: "[CI] Lint, build & publish"
+
+# Readable run titles in the Actions UI: PR runs show the PR number and
+# title; main pushes show the head commit subject.
+run-name: >-
+  ${{ github.event_name == 'pull_request'
+      && format('PR #{0} — {1}', github.event.pull_request.number, github.event.pull_request.title)
+      || format('Head build — {0}', github.event.head_commit.message) }}
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+# Least-privilege default: only read access at the workflow level.
+# Jobs that need more elevate locally.
+permissions:
+  contents: read
+
+jobs:
+  # ── Quality gates ─────────────────────────────────────────
+  #
+  # Helm lint runs on every push + PR as a parallel quality gate.
+  # Its failure breaks the workflow status but does not block the
+  # image build (surfaced via branch protection required check).
+
+  helm-lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: azure/setup-helm@v5
+
+      - name: Install kubeconform
+        run: |
+          curl -sSL https://github.com/yannh/kubeconform/releases/download/v0.6.7/kubeconform-linux-amd64.tar.gz \
+            | sudo tar xz -C /usr/local/bin kubeconform
+
+      - name: Lint, template-render & validate all charts
+        run: |
+          for chart in charts/*/; do
+            name=$(basename "$chart")
+            echo "::group::${name}"
+            helm lint "$chart"
+            helm template test "$chart" \
+              | kubeconform -strict -summary \
+                  -schema-location default \
+                  -schema-location 'https://raw.githubusercontent.com/datreeio/CRDs-catalog/main/{{.Group}}/{{.ResourceKind}}_{{.ResourceAPIVersion}}.json' \
+                  -ignore-missing-schemas
+            echo "::endgroup::"
+          done
+
+  # ── Container image ──────────────────────────────────────
+  #
+  # The shared reusable workflow handles checkout, change
+  # detection, Docker build/push, Cosign signing, and Trivy
+  # scanning.
+  #
+  # `helm-lint` is intentionally NOT in `needs` — it runs as an
+  # independent parallel job whose failure surfaces via branch
+  # protection (required status check) rather than delaying or
+  # blocking image builds.
+
+  build-tech-ops-docs:
+    uses: bcit-tlu/.github/.github/workflows/oci-build.yaml@main
+    permissions:
+      contents: read
+      packages: write
+      id-token: write
+      security-events: write
+      actions: read            # Required by codeql-action/upload-sarif on private repos
+    with:
+      component: tech-ops-docs
+      image_name: tech-ops-docs
+      context: .
+      tag_prefix: "v"
+    secrets: inherit

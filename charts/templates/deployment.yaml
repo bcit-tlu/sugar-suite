@@ -1,0 +1,124 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "apps-common.app.name" . }}
+  labels:
+{{ include "apps-common.app.labels" . | nindent 4 }}
+  {{- with (include "apps-common.app.deployment.annotations" .) }}
+{{ . | nindent 2 }}
+  {{- end }}
+spec:
+  replicas: {{ .Values.processor.replicas | default 1 }}
+  revisionHistoryLimit: {{ .Values.global.revisionHistoryLimit | default 3 }}
+  progressDeadlineSeconds: {{ .Values.global.progressDeadlineSeconds | default 600 }}
+  selector:
+    matchLabels:
+{{ include "apps-common.app.selectorLabels" . | nindent 6 }}
+
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 25%
+      maxUnavailable: 25%
+
+  template:
+    metadata:
+      labels:
+{{ include "apps-common.app.labels" . | nindent 8 }}
+        {{- with .Values.processor.extraLabels }}
+{{ toYaml . | nindent 8 }}
+        {{- end }}
+      {{- with (include "apps-common.app.pod.annotations" .) }}
+{{ . | nindent 6 }}
+      {{- end }}
+    spec:
+      serviceAccountName: {{ include "apps-common.app.serviceAccount.name" . }}
+
+      {{- $podSC := include "apps-common.app.pod.securityContext" . | trim -}}
+      {{- if $podSC }}
+      # Pod-level securityContext (defaults merged with .Values.securityContext.pod)
+      securityContext:
+{{ $podSC | nindent 8 }}
+      {{- end }}
+
+      {{- $hasProc := (default false .Values.processor.enabled) -}}
+      {{- $hasFE   := (default false .Values.frontend.enabled) -}}
+      {{- if or $hasProc $hasFE }}
+      containers:
+{{- if $hasProc }}
+        - name: {{ include "apps-common.app.name" . }}
+          image: "{{ .Values.processor.image.registry }}/{{ .Values.processor.image.repository }}:{{ .Values.processor.image.tag }}"
+          imagePullPolicy: {{ .Values.processor.image.pullPolicy | default "IfNotPresent" }}
+          ports:
+            - containerPort: {{ .Values.processor.port | default 8000 }}
+          {{- include "apps-common.app.containerProbes" (dict "component" .Values.processor) | nindent 10 }}
+          {{- $procEnvFrom := include "apps-common.app.componentEnvFrom" .Values.processor }}
+          {{- if $procEnvFrom }}
+          envFrom:
+{{ $procEnvFrom | nindent 12 }}
+          {{- end }}
+          env:
+            - name: APP_VERSION
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.labels['app.kubernetes.io/version']
+{{- include "apps-common.app.extraEnvironmentVars" .Values.processor | nindent 12 }}
+          {{- $procCSC := include "apps-common.app.container.securityContext" (dict "root" . "component" .Values.processor) | trim -}}
+          {{- if $procCSC }}
+          securityContext:
+{{ $procCSC | nindent 12 }}
+          {{- end }}
+
+          {{- $pm := include "apps-common.app.componentVolumeMounts" (dict "root" . "component" .Values.processor "componentKey" "processor") | trim -}}
+          {{- if $pm }}
+          volumeMounts:
+{{ $pm | nindent 12 }}
+          {{- end }}
+{{- end }}
+
+{{- if $hasFE }}
+        - name: {{ default "frontend" .Values.frontend.name }}
+          image: "{{ .Values.frontend.image.registry }}/{{ .Values.frontend.image.repository }}:{{ .Values.frontend.image.tag }}"
+          imagePullPolicy: {{ .Values.frontend.image.pullPolicy | default "IfNotPresent" }}
+          ports:
+            - containerPort: {{ .Values.frontend.port | default 8080 }}
+          {{- include "apps-common.app.containerProbes" (dict "component" .Values.frontend) | nindent 10 }}
+          {{- $feEnvFrom := include "apps-common.app.componentEnvFrom" .Values.frontend }}
+          {{- if $feEnvFrom }}
+          envFrom:
+{{ $feEnvFrom | nindent 12 }}
+          {{- end }}
+          env:
+            - name: APP_VERSION
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.labels['app.kubernetes.io/version']
+{{- include "apps-common.app.extraEnvironmentVars" .Values.frontend | nindent 12 }}
+          {{- $feCSC := include "apps-common.app.container.securityContext" (dict "root" . "component" .Values.frontend) | trim -}}
+          {{- if $feCSC }}
+          securityContext:
+{{ $feCSC | nindent 12 }}
+          {{- end }}
+
+          {{- with .Values.frontend.resources }}
+          resources:
+{{ toYaml . | nindent 12 }}
+          {{- end }}
+
+          {{- $fm := include "apps-common.app.componentVolumeMounts" (dict "root" . "component" .Values.frontend "componentKey" "frontend") | trim -}}
+          {{- if $fm }}
+          volumeMounts:
+{{ $fm | nindent 12 }}
+          {{- end }}
+{{- end }}
+      {{- else }}
+      {{- fail "No containers would be rendered: set at least one of processor.enabled or frontend.enabled to true." }}
+      {{- end }}
+
+      {{- $volAll := (include "apps-common.app.volumes" .) | trim -}}
+      {{- if $volAll }}
+      volumes:
+{{ $volAll | nindent 8 }}
+      {{- end }}
+
+      {{- include "apps-common.imagePullSecrets" . | nindent 6 }}

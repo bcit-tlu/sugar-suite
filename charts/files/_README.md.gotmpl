@@ -1,0 +1,64 @@
+<!-- markdownlint-disable no-bare-urls no-inline-html -->
+{{ template "chart.header" . }}
+
+{{ template "chart.badgesSection" . }}
+
+{{ template "chart.description" . }}
+
+{{ template "chart.homepageLine" . }}
+
+{{ template "chart.maintainersSection" . }}
+
+## Installing the Chart
+
+Our registry images are public, but in ["Working with Container Registries"](https://docs.github.com/en/packages/working-with-a-github-packages-registry/working-with-the-container-registry) GitHub says:
+> "You need an access token to publish, install, and delete private, internal, and public packages."
+
+1. Create a [GitHub personal access token](https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/managing-your-personal-access-tokens) and set it in your terminal shell:
+
+    ```console
+    export CR_PAT=YOUR_TOKEN
+    ```
+
+1. Install [Helm](https://helm.sh/docs/intro/install) and [jq](https://jqlang.org/download/).
+
+1. Login to the global GitHub registry service:
+
+    ```console
+    echo $CR_PAT | docker login ghcr.io -u USERNAME --password-stdin
+    ```
+
+1. List the available registry tags
+
+    ```console
+    curl -L \
+    -H "Accept: application/vnd.github+json" \
+    -H "Authorization: Bearer $CR_PAT" \
+    -H "X-GitHub-Api-Version: 2022-11-28" \
+    https://api.github.com/orgs/bcit-ltc/packages/container/{{ template "chart.name" . }}/versions \
+    | jq '.[].metadata.container.tags.[]'
+    ```
+
+1. Pull and inspect the helm chart:
+
+    ```console
+    helm pull --untar oci://ghcr.io/bcit-ltc/{{ template "chart.name" . }} --version {VERSION}
+    ```
+
+1. Install the chart:
+
+    ```console
+    helm install {{ template "chart.name" . }} .
+    ```
+
+{{ template "chart.requirementsSection" . }}
+
+{{ template "chart.valuesSection" . }}
+
+## Building/updating README.md
+
+```console
+docker run -it --volume "$(pwd):/helm-docs" -u $(id -u) jnorwood/helm-docs:latest helm-docs --template-files=./files/_README.md.gotmpl
+```
+
+{{ template "helm-docs.versionFooter" . }}
