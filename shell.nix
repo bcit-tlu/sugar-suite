@@ -1,15 +1,18 @@
 { pkgs ? import <nixpkgs> {} }:
 
 pkgs.mkShell {
-  packages = [
-    git
-    kubectx
+  buildInputs = with pkgs; [
     kubectl
-    kustomize
-    pkgs.nodejs_24
     kubernetes-helm
+    fluxcd
+    gh
+    kubectx
+    kustomize
+    oras
+    git
     jq
     vault
+    nodejs_24
   ];
   shellHook = ''
   '';
