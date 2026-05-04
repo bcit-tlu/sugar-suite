@@ -61,8 +61,6 @@ jobs:
 
           mkdir -p "${DEST_DIR}"
 
-          helm dependency update "${CHART_DIR}" || true
-
           helm package "${CHART_DIR}" \
             --version "${VERSION}" \
             --app-version "${VERSION}" \
