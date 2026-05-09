@@ -6,7 +6,6 @@
   "packages": {
     ".": {
       "release-type": "node",
-      "component": "sugar-suite",
       "extra-files": [
         {
           "type": "generic",
