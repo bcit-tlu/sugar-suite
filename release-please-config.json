@@ -5,7 +5,7 @@
   "separate-pull-requests": false,
   "packages": {
     ".": {
-      "release-type": "simple",
+      "release-type": "node",
       "component": "sugar-suite",
       "extra-files": [
         {
