@@ -5,8 +5,23 @@
   "separate-pull-requests": false,
   "packages": {
     ".": {
-      "release-type": "node",
+      "release-type": "simple",
       "extra-files": [
+        {
+          "type": "json",
+          "path": "package.json",
+          "jsonpath": "$.version"
+        },
+        {
+          "type": "json",
+          "path": "package-lock.json",
+          "jsonpath": "$.version"
+        },
+        {
+          "type": "json",
+          "path": "package-lock.json",
+          "jsonpath": "$.packages[''].version"
+        },
         {
           "type": "generic",
           "path": "charts/Chart.yaml"
