@@ -1,5 +1,26 @@
 # Changelog
 
+## [0.5.0](https://github.com/bcit-tlu/sugar-suite/compare/v0.4.0...v0.5.0) (2026-05-09)
+
+
+### Features
+
+* **chart:** add ServiceAccount template ([2b2502e](https://github.com/bcit-tlu/sugar-suite/commit/2b2502e44fb6070177fc94073512d8c6c2b8a66d))
+* **chart:** make probe paths and timing configurable via values ([938ed2c](https://github.com/bcit-tlu/sugar-suite/commit/938ed2c2daf27837d6e9f69c948f294ae73feb75))
+
+
+### Bug Fixes
+
+* **chart:** restore nameOverride/fullnameOverride support ([61420c2](https://github.com/bcit-tlu/sugar-suite/commit/61420c263c14b548fd424847e6f17e946e18c92f))
+* **chart:** use dedicated health endpoints for probes ([30f9bac](https://github.com/bcit-tlu/sugar-suite/commit/30f9bac4791442b541ffe64c536ac3796040c73c))
+* remove component field to fix release-please finalization ([128ebe9](https://github.com/bcit-tlu/sugar-suite/commit/128ebe9475dd12ca37a4564678e28bdbecf554a9))
+* remove component field to fix release-please finalization ([f4db82b](https://github.com/bcit-tlu/sugar-suite/commit/f4db82bd92e258b39ac1dbf50c67a87f2227dad9))
+* replaces nix shell package; updates Chart description ([f11a3fe](https://github.com/bcit-tlu/sugar-suite/commit/f11a3fe42f9b452d6a5fe91d32e450ded7c39efa))
+* replaces nix shell package; updates Chart description ([041ab65](https://github.com/bcit-tlu/sugar-suite/commit/041ab65a16e3cbbc7ed2337d69569fbbdafd0112))
+* switch release-please strategy from simple to node ([855e736](https://github.com/bcit-tlu/sugar-suite/commit/855e736d57b2cd51869910e372f8a3654669623f))
+* switch release-type from node to simple to fix component auto-derive ([41665da](https://github.com/bcit-tlu/sugar-suite/commit/41665da1233bffa6e6885cc5ae1448f12d2f7176))
+* switch release-type from node to simple to fix component auto-derive ([b7f46e6](https://github.com/bcit-tlu/sugar-suite/commit/b7f46e6524084ad3fb6648dc62f6d7c5b3cd8a16))
+
 ## [0.4.0](https://github.com/bcit-tlu/sugar-suite/compare/v0.3.0...v0.4.0) (2026-05-04)
 
 
