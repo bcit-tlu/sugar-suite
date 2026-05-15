@@ -18,7 +18,7 @@ jobs:
       pull-requests: write
     outputs:
       releases_created: ${{ steps.rp.outputs.releases_created }}
-      tag_name: ${{ steps.rp.outputs['.--tag_name'] }}
+      tag_name: ${{ steps.rp.outputs['tag_name'] }}
     steps:
       - uses: googleapis/release-please-action@v4
         id: rp
