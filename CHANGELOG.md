@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.5.1](https://github.com/bcit-tlu/sugar-suite/compare/v0.5.0...v0.5.1) (2026-05-15)
+
+
+### Bug Fixes
+
+* use correct release-please output key for root package dispatch ([2e22352](https://github.com/bcit-tlu/sugar-suite/commit/2e22352de68cbf97c27c8d8fbb5f45f898ceda44))
+* use correct release-please output key for root package dispatch ([444e1a6](https://github.com/bcit-tlu/sugar-suite/commit/444e1a6b62a40989386cc422aeba811998ba57b9))
+
 ## [0.5.0](https://github.com/bcit-tlu/sugar-suite/compare/v0.4.0...v0.5.0) (2026-05-09)
 
 
