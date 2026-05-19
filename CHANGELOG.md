@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.5.2](https://github.com/bcit-tlu/sugar-suite/compare/v0.5.1...v0.5.2) (2026-05-19)
+
+
+### Bug Fixes
+
+* Upgrade to jQuery 4, update Node.js and Alpine versions, add production compose file, upgrade dependencies ([2a759b0](https://github.com/bcit-tlu/sugar-suite/commit/2a759b0c54656e5db5c94bedb155c4d748fd3149))
+
 ## [0.5.1](https://github.com/bcit-tlu/sugar-suite/compare/v0.5.0...v0.5.1) (2026-05-15)
 
 
