@@ -315,6 +315,16 @@
             }
 
             flex: 0 0 12%;
+
+            .fa-expand {
+                font-style: normal;
+
+                &:before {
+                    font-family: FontAwesome;
+                    font-weight: normal;
+                    content: "\f065";
+                }
+            }
         }
 
         .show-border {
@@ -367,6 +377,7 @@
                 height: auto;
                 font-size: 1.5em;
                 font-weight: 500;
+                margin: 0.5em 0.5em 0;
                 text-align: center;
             }
 

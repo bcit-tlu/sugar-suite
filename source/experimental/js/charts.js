@@ -300,7 +300,7 @@
 			$(this).find("tr").each(function () {
 				var thisRow = [];
 				$(this).find("th, td").each(function () {
-					thisRow.push($.trim($(this).text()));
+					thisRow.push($(this).text().trim());
 				});
 				tableRows.push(thisRow);
 			});

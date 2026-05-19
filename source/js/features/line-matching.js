@@ -180,7 +180,7 @@
         });
 
         // the "drawing" of the line, while we have one.
-        $matching.mousemove(function (event) {
+        $matching.on("mousemove", function (event) {
             var offset = $(this).find(".line-matching-container").offset();
             if (isClicked) {
                 let $line = $(this).find(".connector-line.selected");
@@ -205,7 +205,7 @@
         let $resetButton = $("<button type='button'>").addClass("reset btn").text("Reset");
         $resetButton.insertAfter($matchingContainer);
 
-        $resetButton.click(function () {
+        $resetButton.on("click", function () {
             $matching.find(".matching-item").each(function () {
                 if ($(this).hasClass("overText")) {
                     $(this).attr('class', 'matching-item overText');
@@ -447,7 +447,7 @@
 
             // in case the line-connector got clicked instead on matching-item
             if (clickEvent.target !== this && $(this).find(".selected").length) {
-                $matchingDiv.click();
+                $matchingDiv.trigger("click");
                 return;
             }
 

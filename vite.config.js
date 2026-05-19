@@ -6,7 +6,7 @@ import { globSync } from 'glob'; // file pattern matching
 import { defineConfig } from 'vite'; // vite configuration helper
 import autoprefixer from 'autoprefixer'; // css vendor prefixing
 import cssnano from 'cssnano'; // css minification and optimization
-import viteCompression from 'vite-plugin-compression'; // gzip/brotli compression
+import { compression } from 'vite-plugin-compression2'; // gzip/brotli compression (vite 8 + windows-safe)
 import { minify } from 'terser'; // javascript minification
 
 const __dirname = resolve(fileURLToPath(import.meta.url), '..'); // get current directory
@@ -71,7 +71,7 @@ export default defineConfig({
         this.emitFile({ // emit the file to output
           type: 'asset', // file type
           fileName: 'js/lat.js', // output filename
-          source: minifiedMainJs.code + '\n//# sourceMappingURL=maps/lat.js.map' // file content with source map reference
+          source: minifiedMainJs.code + '\n//# sourceMappingURL=lat.js.map' // sibling .map reference
         });
 
         // process experimental js (equivalent to gulp's experimental task)
@@ -117,21 +117,21 @@ export default defineConfig({
         this.emitFile({ // emit experimental file
           type: 'asset', // file type
           fileName: 'js/experimental.js', // output filename
-          source: minifiedExperimentalJs.code + '\n//# sourceMappingURL=maps/experimental.js.map' // file content with source map reference
+          source: minifiedExperimentalJs.code + '\n//# sourceMappingURL=experimental.js.map' // sibling .map reference
         });
 
         // generate source maps for JS files
         const mainSourceMap = generateSourceMap('source/js/features', 'js/lat.js');
         this.emitFile({
           type: 'asset',
-          fileName: 'js/maps/lat.js.map',
+          fileName: 'js/lat.js.map',
           source: JSON.stringify(mainSourceMap)
         });
 
         const experimentalSourceMap = generateSourceMap('source/experimental/js', 'js/experimental.js');
         this.emitFile({
           type: 'asset',
-          fileName: 'js/maps/experimental.js.map',
+          fileName: 'js/experimental.js.map',
           source: JSON.stringify(experimentalSourceMap)
         });
       }
@@ -166,103 +166,30 @@ export default defineConfig({
             // Generate comprehensive source map with actual source content
             const sourceMap = generateCSSSourceMap(fileName, sourceFile);
 
-            // Emit the source map file in css/maps directory
-            let mapFileName;
-            if (fileName.includes('custom/')) {
-              // For custom files, keep the custom folder structure: css/maps/custom/business/filename.css.map
-              mapFileName = fileName.replace('css/', 'css/maps/') + '.map';
-            } else {
-              // For main theme files, place directly in maps: css/maps/filename.css.map
-              mapFileName = fileName.replace('css/', 'css/maps/') + '.map';
-            }
-            this.emitFile({
-              type: 'asset',
-              fileName: mapFileName,
-              source: JSON.stringify(sourceMap)
-            });
-
-            // Add sourceMappingURL comment to CSS pointing to css/maps
-            let mapUrlFileName;
-            if (fileName.includes('custom/')) {
-              // For custom files, keep the custom folder structure: maps/custom/business/filename.css.map
-              mapUrlFileName = fileName.replace('css/', '') + '.map';
-            } else {
-              // For main theme files, place directly in maps: maps/filename.css.map
-              mapUrlFileName = fileName.replace('css/', '') + '.map';
-            }
-            chunk.source += '\n/*# sourceMappingURL=maps/' + mapUrlFileName + ' */';
-          }
-        });
-      }
-    },
-    // custom plugin for JS source maps (for files not handled by js-concat)
-    {
-      name: 'js-sourcemaps-all',
-      generateBundle(options, bundle) {
-        // Find ALL JS files and create source maps for them
-        Object.keys(bundle).forEach(fileName => {
-          const chunk = bundle[fileName];
-          if (chunk.type === 'asset' && fileName.endsWith('.js')) {
-            // Skip vendor JS files
-            if (fileName.includes('vendor/')) {
-              return;
-            }
-
-            // Skip files already handled by js-concat plugin
-            if (fileName === 'js/lat.js' || fileName === 'js/experimental.js') {
-              return;
-            }
-
-            // Create a basic source map for JS
-            const sourceMap = {
-              version: 3,
-              sources: [fileName],
-              names: [],
-              mappings: 'AAAA',
-              file: fileName,
-              sourcesContent: ['/* Source map for ' + fileName + ' */']
-            };
-
-            // Emit the source map file
+            // Emit the source map as a sibling of the CSS file. Browsers resolve
+            // sourceMappingURL relative to the CSS file's own location, so placing
+            // the map alongside keeps the URL trivially correct at any nesting depth.
             this.emitFile({
               type: 'asset',
               fileName: fileName + '.map',
               source: JSON.stringify(sourceMap)
             });
 
-            // Add sourceMappingURL comment to JS
-            chunk.source += '\n//# sourceMappingURL=' + fileName + '.map';
+            // sourceMappingURL is just the basename since the map lives next to the CSS
+            const mapBasename = fileName.split('/').pop() + '.map';
+            chunk.source += '\n/*# sourceMappingURL=' + mapBasename + ' */';
           }
         });
       }
     },
-    // gzip compression plugin
-    viteCompression({
-      algorithm: 'gzip', // compression algorithm
-      ext: '.gz', // file extension for compressed files
-      threshold: 512, // compress files larger than 512 bytes
-      minRatio: 0.7, // only compress if compression ratio is better than 70%
-      deleteOriginFile: false, // keep original files
-      // optimize compression for css files
-      filter: (fileName) => { // filter which files to compress
-        return fileName.endsWith('.css') || fileName.endsWith('.js'); // only css, js files
-      },
-      // Only compress in production builds, not in watch mode or preview
-      disable: process.env.NODE_ENV === 'development' || process.argv.includes('--watch')
-    }),
-    // brotli compression plugin (better compression than gzip)
-    viteCompression({
-      algorithm: 'brotliCompress', // brotli compression algorithm
-      ext: '.br', // file extension for brotli compressed files
-      threshold: 512, // compress files larger than 512 bytes
-      minRatio: 0.7, // only compress if compression ratio is better than 70%
-      deleteOriginFile: false, // keep original files
-      // optimize compression for css files
-      filter: (fileName) => { // filter which files to compress
-        return fileName.endsWith('.css') || fileName.endsWith('.js'); // only css, js files
-      },
-      // Only compress in production builds, not in watch mode or preview
-      disable: process.env.NODE_ENV === 'development' || process.argv.includes('--watch')
+    // pre-compress static assets (build-only by default; nginx serves with gzip_static)
+    // brotli is intentionally omitted: the nginxinc/nginx-unprivileged image lacks the brotli module
+    compression({
+      algorithms: ['gzip'], // gzip only for now
+      threshold: 512, // skip files smaller than 512 bytes
+      include: [/\.(css|js)$/], // only css and js
+      deleteOriginalAssets: false, // keep originals so plain clients still get served
+      skipIfLargerOrEqual: true // skip if compressed size >= original (equivalent to old minRatio guard)
     })
   ],
 
@@ -322,7 +249,7 @@ export default defineConfig({
     target: 'es2015', // javascript target version
     // enable chunk splitting for better caching
     chunkSizeWarningLimit: 1000, // chunk size warning threshold
-    rollupOptions: { // rollup bundler options
+    rolldownOptions: { // rolldown bundler options (vite 8)
       input: { // entry points
         // scss entry points for themes (replaces gulp's sasssources)
         ...getScssEntries() // spread scss entries from helper function
@@ -462,7 +389,7 @@ function getModuleContent(sourceDir) { // function to concatenate js files
   // add jquery first if this is the main features bundle
   if (sourceDir === 'source/js/features') { // if main features directory
     content += '// jQuery\n'; // add jquery comment
-    content += fs.readFileSync('public/js/vendor/jquery-3.7.1.min.js', 'utf8'); // read jquery file
+    content += fs.readFileSync('public/js/vendor/jquery-4.0.0.min.js', 'utf8'); // read jquery file
     content += '\n\n'; // add newlines
   }
 
@@ -486,8 +413,8 @@ function generateSourceMap(sourceDir, outputFile) {
 
   // add jquery source if this is the main features bundle
   if (sourceDir === 'source/js/features') { // if main features directory
-    sources.push('public/js/vendor/jquery-3.7.1.min.js'); // add jquery source
-    sourcesContent.push(fs.readFileSync('public/js/vendor/jquery-3.7.1.min.js', 'utf8')); // add jquery content
+    sources.push('public/js/vendor/jquery-4.0.0.min.js'); // add jquery source
+    sourcesContent.push(fs.readFileSync('public/js/vendor/jquery-4.0.0.min.js', 'utf8')); // add jquery content
   }
 
   jsFiles.forEach(file => { // iterate through js files

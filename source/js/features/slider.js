@@ -47,7 +47,7 @@
             }
         );
         
-        $figureImage.children("h2").css({"position": "absolute", "background-color": "rgba(51,51,51,.7)", "color": "white"});
+        $figureImage.children("h2").css({"position": "absolute", "background-color": "rgba(51,51,51,.7)", "color": "white", "text-wrap": "wrap"});
         $figureImage.children("img").css({"position": "absolute"});
         $figureImage.children("figcaption").css({"position": "absolute", "background-color": "rgba(51,51,51,.7)", "color": "white"});
         /* $figureImage.children("figcaption").children("*").css({"color": "white"}); */
@@ -65,19 +65,19 @@
         $modalImages.hide(); // Hide modal/fullscreen mode
         
         // Close fullscreen mode
-        $(".close-fs").click(function () {
+        $sliderModal.find(".close-fs").on("click", function () {
             $("body").css("overflow", "unset");
-            $(".full-screen").remove();
+            $slider.find(".full-screen").remove();
             $sliderModal.hide();
             $(this).siblings().hide();
             $slider.find(".show-index").text((index.getIndex() + 1) + " of " + $figureImage.length);
             $figureImage.css({ "display": "none", "left": "0px" });
             $figureImage.eq([index.getIndex()]).css({ "opacity": "1", "display": "block" });
-            toggleFullScreen();
+            exitFullScreen();
         });
         
         // Show and hide slider caption
-        $(".show-caption").click(function () {
+        $nav.find(".show-caption").on("click", function () {
             $figureImage.children("figcaption").toggle();
             var $toggleButton = $(this).children("button");
             var isOpened = $toggleButton.text().trim() === "Hide caption ▼";
@@ -91,8 +91,8 @@
         });
 
         // Show slider in fullscreen mode
-        $(".show-fullscreen").click(function () {
-            toggleFullScreen();
+        $nav.find(".show-fullscreen").on("click", function () {
+            enterFullScreen();
             var $overlay = $("<div>").addClass("full-screen");
             $slider.append($overlay);
             $sliderModal.css("display", "flex");
@@ -100,6 +100,27 @@
             $sliderModal.children("button").show();
             $("body").css("overflow", "hidden");
         });
+
+        // Keep modal state in sync when the browser exits fullscreen for any reason
+        // (Esc key, opening a link in a new tab, switching apps, etc.)
+        $(document).on(
+            "fullscreenchange webkitfullscreenchange mozfullscreenchange MSFullscreenChange",
+            function () {
+                var fsElement = document.fullscreenElement ||
+                    document.webkitFullscreenElement ||
+                    document.mozFullScreenElement ||
+                    document.msFullscreenElement;
+                if (fsElement || !$sliderModal.is(":visible")) return;
+                $("body").css("overflow", "unset");
+                $slider.find(".full-screen").remove();
+                $sliderModal.hide();
+                $sliderModal.find(".close-fs").siblings().hide();
+                $modalImages.hide();
+                $slider.find(".show-index").text((index.getIndex() + 1) + " of " + $figureImage.length);
+                $figureImage.css({ "display": "none", "left": "0px" });
+                $figureImage.eq([index.getIndex()]).css({ "opacity": "1", "display": "block" });
+            }
+        );
 
         // Change the current image to the prev/next image + animation
         function changeImage() {
@@ -119,7 +140,7 @@
                 cssLeftSize = "-" + sliderWidth + "px";
             }
 
-            $(".prev, .next").prop('disabled', true);
+            $slider.find(".prev, .next").prop('disabled', true);
 
             var $nextFigure = $figureImage.eq(index.getIndex());
             $currentFigure.stop().animate({ "left": animateLeftSize, "opacity": "0" }, "fast").promise().done(function () {
@@ -128,7 +149,7 @@
 
                 $nextFigure.stop().animate({ "left": animateLeftSize, "opacity": "1" }, "fast").promise().done(function () {
                     $nextFigure.css({ "left": "0px" });
-                    $(".prev, .next").prop('disabled', false);
+                    $slider.find(".prev, .next").prop('disabled', false);
                 });
             });
             
@@ -159,7 +180,7 @@
                 cssLeftSize = "-" + sliderWidth + "px";
             }
 
-            $(".prev-fs, .next-fs").prop('disabled', true);
+            $sliderModal.find(".prev-fs, .next-fs").prop('disabled', true);
 
             var $modalNextFigure = $modalImages.eq(index.getIndex());
             $modalCurrentFigure.stop().animate({ "left": animateLeftSize, "opacity": "0" }, "fast").promise().done(function () {
@@ -168,7 +189,7 @@
 
                 $modalNextFigure.stop().animate({ "left": animateLeftSize, "opacity": "1" }, "fast").promise().done(function () {
                     $modalNextFigure.css({ "left": "0px" });
-                    $(".prev-fs, .next-fs").prop('disabled', false);
+                    $sliderModal.find(".prev-fs, .next-fs").prop('disabled', false);
 
                     var isScroll = ($modalNextFigure[0].scrollHeight - $(window).height() > 0) ? true : false;
                     var scrollbarWidth = $modalNextFigure.outerWidth() - $modalNextFigure.children("h2").outerWidth();
@@ -176,12 +197,12 @@
                         if (scrollbarWidth > 0){
                             var right = parseInt($fsNextButton.css("right"), 10);
                             if (right === 0) {
-                                $(".close-fs, .next-fs").animate({"right" : "+=" + scrollbarWidth});
+                                $sliderModal.find(".close-fs, .next-fs").animate({"right" : "+=" + scrollbarWidth});
                             }        
                         }
                     } else {
-                        $(".close-fs").animate({"right" : "0" });
-                        $(".next-fs").animate({"right" : "0" });
+                        $sliderModal.find(".close-fs").animate({"right" : "0" });
+                        $sliderModal.find(".next-fs").animate({"right" : "0" });
                     }
 
                 });
@@ -227,36 +248,40 @@
         });
     }
 
-    function toggleFullScreen() {
+    function enterFullScreen() {
 		var d = document;
+		var fsElement = d.fullscreenElement ||
+			d.webkitFullscreenElement ||
+			d.mozFullScreenElement ||
+			d.msFullscreenElement;
+		if (fsElement) return;
 		var el = d.documentElement;
-
-		// Cross-Browser test if fullscreen is active
-		var isFullScreen = (d.fullScreenElement &&
-				d.fullScreenElement !== null) ||
-			(!d.mozFullScreen &&
-				!d.webkitIsFullScreen);
-
-		// Safari may need to be disabled...
-		// var isSafari = /Safari/.test(navigator.userAgent);
-
-		// Use appropriate request method
-		var requestMethod = el.requestFullScreen ||
-			el.webkitRequestFullScreen ||
+		var requestMethod = el.requestFullscreen ||
+			el.webkitRequestFullscreen ||
 			el.mozRequestFullScreen ||
-			el.msRequestFullScreen;
+			el.msRequestFullscreen;
+		if (!requestMethod) return;
+		var req = requestMethod.call(el);
+		if (req && typeof req.catch === "function") {
+			req.catch(function () {});
+		}
+	}
 
-		// Use appropriate cancel method
-		var cancelMethod = d.cancelFullScreen ||
+	function exitFullScreen() {
+		var d = document;
+		var fsElement = d.fullscreenElement ||
+			d.webkitFullscreenElement ||
+			d.mozFullScreenElement ||
+			d.msFullscreenElement;
+		if (!fsElement) return;
+		var exitMethod = d.exitFullscreen ||
+			d.webkitExitFullscreen ||
 			d.mozCancelFullScreen ||
-			d.webkitCancelFullScreen;
-
-		// Call appropriate method for toggle
-		if (isFullScreen) {
-			// The second option may need to be conditional
-			requestMethod.call(el, Element.ALLOW_KEYBOARD_INPUT);
-		} else {
-			cancelMethod.call(d);
+			d.msExitFullscreen;
+		if (!exitMethod) return;
+		var exit = exitMethod.call(d);
+		if (exit && typeof exit.catch === "function") {
+			exit.catch(function () {});
 		}
 	}
 }(jQuery));

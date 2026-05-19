@@ -25,15 +25,15 @@ $(document).ready(function () {
                 $(this).before($textarea);
             }
 
-            $button.attr("disabled", true);
+            $button.prop("disabled", true);
 
             // Listen to changes textarea
             $textarea.on('keyup', function (event) {
                 var currentLength = $(this).val();
                 if (currentLength.length < inputLength) {
-                    $button.attr("disabled", true);
+                    $button.prop("disabled", true);
                 } else {
-                    $button.attr("disabled", false);
+                    $button.prop("disabled", false);
                 }
             });
 
@@ -49,7 +49,7 @@ $(document).ready(function () {
     });
 
 
-    $(".reveal-button").click(function () {
+    $(".reveal-button").on("click", function () {
         $(this).next().slideToggle("fast").promise().done(function () {
             if ($(this).find(".line-matching")) {
                 $(window).trigger('resize');

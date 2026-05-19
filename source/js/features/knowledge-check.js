@@ -8,15 +8,14 @@
         actual: "<i class='actual'>➜</i>"
     };
 
-    $.expr[':'].startsWith = function (el, index, match) {
-        var param = match[3];
-        var re = new RegExp("^" + param);
-        var startsWith = re.test($.trim($(el).text()));
-        if (startsWith) {
-            return true;
-        }
-        return false;
-    };
+    // :startsWith(@) — matches elements whose trimmed text starts with @.
+    // jQuery 4 requires createPseudo for argument-taking pseudos.
+    $.expr.pseudos.startsWith = $.expr.createPseudo(function (arg) {
+        var re = new RegExp("^" + arg);
+        return function (el) {
+            return re.test(($(el).text() ?? "").trim());
+        };
+    });
 
     $knowledgeCheck.each(function () {
         var $questionList = $(this).children("ol,ul").last();
@@ -37,7 +36,7 @@
         }, 500);
 
         $el.attr("tabindex", -1);
-        $el.focus();
+        $el.trigger("focus");
         $el.removeAttr("tabindex");
     }
 
@@ -96,7 +95,7 @@
         $form.append($submitButton);
         $form.append($resetButton);
         $replaceable.replaceWith($form);
-        $form.submit(checkResults);
+        $form.on("submit", checkResults);
         $resetButton.on("click", function (e) {
             e.preventDefault();
             scrollTo($form.parent());
@@ -137,7 +136,7 @@
                 $score.hide();
                 $form.prepend($score);
                 $score.slideDown();
-                $score.focus();
+                $score.trigger("focus");
             }
 
             function addResetButton() {
@@ -367,10 +366,10 @@
                 $both.animate({
                     top: 0
                 }, speed, function () {
-                    $up.focus();
+                    $up.trigger("focus");
                     fuckWitIt();
                     if ($up.is(":disabled")) {
-                        $down.focus();
+                        $down.trigger("focus");
                     }
                 });
             });
@@ -399,9 +398,9 @@
                 $both.animate({
                     top: 0
                 }, speed, function () {
-                    $down.focus();
+                    $down.trigger("focus");
                     if ($down.is(":disabled")) {
-                        $up.focus();
+                        $up.trigger("focus");
                     }
                 });
             });
@@ -463,10 +462,10 @@
             var correct = [];
             var incorrect = [];
             options.map(function (option) {
-                var trimmed = $.trim(option).replace(/\s\s+/g, ' ');
+                var trimmed = (option ?? "").trim().replace(/\s\s+/g, ' ');
                 var firstChar = trimmed.charAt(0);
                 if (firstChar === "*") {
-                    correct.push($.trim(trimmed.slice(1)));
+                    correct.push((trimmed.slice(1) ?? "").trim());
                 } else {
                     incorrect.push(trimmed);
                 }
@@ -507,7 +506,7 @@
 
                 $input.on("assess", function () {
                     let val = $(this).val();
-                    let trimmedVal = val.trim().replace(/\s\s+/g, ' '); // trim and remove whitespaces
+                    let trimmedVal = (val ?? "").trim().replace(/\s\s+/g, ' '); // trim and remove whitespaces
                     $(this).attr("title", "Accepts: " + correct.join(", "));
                     $(this).prev(".correct, .incorrect").remove();
                     if (correct.indexOf(trimmedVal) >= 0) {
@@ -583,7 +582,7 @@
                             $pElement.prepend(optionEnum + '. ');
                             option.html = $pHtmlElement.html();
                         } else {
-                            option.html = optionEnum + '. ' + pHtml;
+                            option.html = optionEnum + '. ' + option.html;
                         }
                         option.isEnum = true;
                     } else {
@@ -751,14 +750,14 @@
         };
 
         function itStartsWith(string, character) {
-            var firstChar = $.trim(string).charAt(0);
+            var firstChar = (string ?? "").trim().charAt(0);
             return firstChar === character;
         }
 
         function removeCharacter(string, char) {
             var index = string.indexOf(char);
             var str = string.slice(0, index) + string.slice(index + 1);
-            return $.trim(str);
+            return (str ?? "").trim();
         }
 
         function init() {
@@ -796,7 +795,7 @@
                     $pairs.each(function () {
                         var text = $(this).text();
                         var pair = text.split("=");
-                        pairs.push([$.trim(pair.shift()), $.trim(pair.join("="))]);
+                        pairs.push([(pair.shift() ?? "").trim(), pair.join("=").trim()]);
                     });
                     $lastList.remove();
                     data.pairs = pairs;
@@ -844,9 +843,9 @@
 
             if ($p.length === 1) {
                 $p.each(function () {
-                    var text = $.trim($(this).text().toLowerCase());
+                    var text = $(this).text().toLowerCase().trim();
                     if (text.indexOf("type:") === 0) {
-                        var type = $.trim(text.slice("type:".length));
+                        var type = text.slice("type:".length).trim();
                         switch (type) {
                             case "order":
                                 data.type = "ORDER";
@@ -983,7 +982,7 @@
             $question.contents().each(function () {
                 $remains.append($(this).clone());
             });
-            data.text = $.trim($remains.html());
+            data.text = ($remains.html() ?? "").trim();
         }
 
         function parseBlanks() {
@@ -1029,7 +1028,7 @@
         ];
 
         $contents.each(function () {
-            if (this.nodeType === 3 && $.trim($(this).text())) {
+            if (this.nodeType === 3 && $(this).text().trim()) {
                 selection.push($(this));
             } else if (inlineTags.indexOf(this.tagName) !== -1) {
                 selection.push($(this));

@@ -1,5 +1,5 @@
 ## Build stage
-FROM node:24.8.0-alpine3.22 AS builder
+FROM node:24.15.0-alpine3.23 AS builder
 
 WORKDIR /app
 
@@ -13,7 +13,7 @@ RUN npm run build
 
 
 ## Release/production
-FROM nginxinc/nginx-unprivileged:alpine3.22-perl
+FROM nginxinc/nginx-unprivileged:alpine3.23-perl
 
 LABEL maintainer=courseproduction@bcit.ca
 LABEL org.opencontainers.image.source="https://github.com/bcit-ltc/sugar-suite"

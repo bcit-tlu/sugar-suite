@@ -1,6 +1,6 @@
 (function($) {
 	
-	$("a.new-window").click(function (e) {
+	$("a.new-window").on("click", function (e) {
 		e.preventDefault();
 		var url = $(this).attr("href");
 		window.open(url, "not important", "height=200, width=200, left=10000, top=100, menubar=0, titlebar=0, status=0, toolbar=0, scrollbars=0");

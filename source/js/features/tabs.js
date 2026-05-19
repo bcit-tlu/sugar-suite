@@ -56,7 +56,7 @@
         $tabNav.children("li:first").addClass("selected");
 
 
-        $tabNav.children("li").click(function (e) {
+        $tabNav.children("li").on("click", function (e) {
             e.preventDefault();
             let idx = $(this).index();
             $(this).siblings(".selected").removeClass("selected");
@@ -93,7 +93,7 @@
     });
 
     function trimWhiteSpace(str) {
-        let text = $.trim(str);
+        let text = (str ?? "").trim();
         text = text.replace(/\s+/g, " ");
         return text;
     }

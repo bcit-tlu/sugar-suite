@@ -25,8 +25,8 @@
         $li.each(processLi).promise().done(function () {
             var $checkbox = $checklist.find("input[type=checkbox]");
             $checkbox.each(checkSiblings);
-            $checkbox.change(checkboxChecker);
-            $li.find("label").click(handleLabel);
+            $checkbox.on("change", checkboxChecker);
+            $li.find("label").on("click", handleLabel);
         });
         //addResetButton($checklist);
 
@@ -35,11 +35,11 @@
             // Wrap the first and last text inside <li> if isn't wrapped with an element
             _$li.each(function() {
                 var firstContent = $($(this).contents().first());
-                if(firstContent[0].nodeType === 3 && $.trim(firstContent[0].nodeValue).length != 0) {
+                if(firstContent[0].nodeType === 3 && (firstContent[0].nodeValue ?? "").trim().length != 0) {
                     firstContent.wrap("<p>");
                 }
                 var lastContent = $($(this).contents().last());
-                if(lastContent[0].nodeType === 3 && $.trim(lastContent[0].nodeValue).length != 0) {
+                if(lastContent[0].nodeType === 3 && (lastContent[0].nodeValue ?? "").trim().length != 0) {
                     lastContent.wrap("<p>");
                 }
             });

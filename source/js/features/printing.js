@@ -9,7 +9,7 @@ Printing
 	}
 
 	function afterPrinting() {
-		$("_bellow").hide();
+		$("._bellow").hide();
 		$(".reveal-button").next().hide();
 	}
 	

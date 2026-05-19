@@ -34,7 +34,7 @@
 	function makeResponsive(animationTime) {
 		// Prevent navbar from extending full-screen
 		_$(".d2l-navbar-link:contains(Course Home)").closest(".d2l-box-layout").css({
-			"max-width": 960,
+			"max-width": "960px",
 			margin: "auto"
 		});
 
@@ -68,16 +68,16 @@
 		function adjustIframe() {
 			var height;
 			// make smaller than document
-			_$(".d2l-iframe").css("height", 0);
+			_$(".d2l-iframe").css("height", "0px");
 
 			// measure document
 			height = $(document).height();
 
 			// set height of iframe
-			_$(".d2l-iframe").css("height", height);
+			_$(".d2l-iframe").css("height", height + "px");
 
 			// adjust min-height of whatever this is
-			_$(".d2l-fileviewer-text").css("min-height", height);
+			_$(".d2l-fileviewer-text").css("min-height", height + "px");
 		}
 	}
 
