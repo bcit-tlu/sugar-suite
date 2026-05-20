@@ -1,5 +1,5 @@
 @use "../../variables/colors" as *;
-@use "../../mixins/love-hate" as love-hate;
+@use "../../mixins/link-states" as link-states;
 @use "../../partials/containers/base-container" as base-container;
 @use "../../partials/containers/custom-max-width";
 $icons-root: "../assets/icons" !default;
@@ -28,7 +28,7 @@ $a: $assessment-link-active-color;
 	border-bottom: 5px solid $secondary-color;
 	//background: $assessment-background-color;
 	//color: $assessment-foreground-color;
-	@include love-hate.love-hate($l, $v, $h, $a);
+	@include link-states.link-states($l, $v, $h, $a);
 	&:before {
 		border: 5px solid $secondary-color;
 		//border: 5px solid $assessment-icon-border-color;

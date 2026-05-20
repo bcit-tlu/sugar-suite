@@ -1,5 +1,5 @@
 @use "../../variables/colors" as *;
-@use "../../mixins/love-hate" as love-hate;
+@use "../../mixins/link-states" as link-states;
 @use "../../partials/containers/base-container" as base-container;
 @use "../../partials/containers/custom-max-width";
 $icons-root: "../assets/icons" !default;
@@ -36,7 +36,7 @@ $a: $activity-link-active-color;
 	//border-radius: $border-radius-large;
 	//background: $activity-background-color;
 	//color: $activity-foreground-color;
-	@include love-hate.love-hate($l, $v, $h, $a);
+	@include link-states.link-states($l, $v, $h, $a);
 	&:before {
 		border: 5px solid $complement-color;
 		//border: 5px solid $activity-icon-border-color;

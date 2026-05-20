@@ -49,26 +49,30 @@ $reveal-button-background-color: $secondary-color-dark !default;
 
 		&:link {
 			color: $reveal-link-color;
-			border-bottom: 1px dotted $reveal-link-color;
-			outline: 0;
+			border-bottom: 2px solid $reveal-link-color;
 		}
 
 		&:visited {
 			color: $reveal-visited-link-color;
-			border-bottom: 1px dotted $reveal-visited-link-color;
-			outline: 0;
+			border-bottom: 2px solid $reveal-visited-link-color;
 		}
 
-		&:hover:enabled {
+		&:hover,
+		&:focus {
 			color: $reveal-hover-link-color;
-			border-bottom: 1px solid $reveal-hover-link-color;
+			border-bottom: 2px solid $reveal-hover-link-color;
+		}
+
+		&:focus-visible {
+			outline: 2px solid $reveal-hover-link-color;
+			outline-offset: 2px;
+			border-radius: 2px;
+			border: none;
 		}
 
 		&:active {
-			top: 1px;
+			top: 2px;
 		}
-
-		&:focus {}
 	}
 
 	h2,

@@ -1,4 +1,4 @@
-@use "../../mixins/love-hate" as love-hate;
+@use "../../mixins/link-states" as link-states;
 @use "../../partials/containers/base-container" as base-container;
 @use "../../variables/colors" as *;
 @use "../../partials/containers/custom-max-width";
@@ -32,7 +32,7 @@ $a: $note-link-active-color;
 	border: 1px solid $note-border-color;
 	border-radius: 4px;
 	color: $note-foreground-color;
-	@include love-hate.love-hate($l, $v, $h, $a);
+	@include link-states.link-states($l, $v, $h, $a);
 
 	&:before {
 		border: 5px solid $note-icon-border-color;
