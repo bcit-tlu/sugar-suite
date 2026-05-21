@@ -1,136 +1,144 @@
 <!DOCTYPE html>
 <html lang="en" class="no-js">
-<head>
+    <head>
     <meta charset="utf-8">
     <meta http-equiv="x-ua-compatible" content="ie=edge">
     <meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=yes">
     <meta name="robots" content="noindex,nofollow,noarchive,nosnippet">
-    <title>Reveal - Sugar Suite Documentation</title>
+        <title>Reveal - Sugar Suite Documentation</title>
     <link rel="stylesheet" href="css/bcit.css">
-</head>
-<body>
-    <div class="container">
-        <h1>Reveal</h1>
-        <div class="back-to-home-wrapper">
+    </head>
+    <body>
+        <div class="container">
+            <h1>Reveal</h1>
+            <div class="back-to-home-wrapper">
             <button class="btn alt back-to-home" type="button" onclick="location.href='index.html'">Back to Home</button>
-        </div>
-        
-        <div class="note">
-            <h2>Description</h2>
-            <p>Creates click-to-show content functionality with optional text input requirements. Perfect for answers, solutions, hints, or any content that should be revealed on demand. Supports both simple reveal and active reveal with user input requirements.</p>
-        </div>
-        
-        <div class="note">
-            <h2>Usage</h2>
-            <p>Wrap content in a container with class <code>.reveal</code> or <code>.active-reveal</code>. The system automatically creates reveal buttons and handles the show/hide functionality.</p>
-            
-            <h3>Available Options</h3>
-            <ul>
-                <li><strong>CSS Classes:</strong>
-                    <ul>
-                        <li><code>.reveal</code> - Simple click-to-show content</li>
-                        <li><code>.active-reveal</code> - Requires user input before revealing</li>
-                    </ul>
-                </li>
-                <li><strong>Data Attributes:</strong>
-                    <ul>
-                        <li><code>data-button="text"</code> - Custom text for reveal button (default: "Reveal")</li>
-                        <li><code>data-min-text="number"</code> - Minimum characters required for active-reveal</li>
-                        <li><code>data-placeholder="text"</code> - Placeholder text for textarea</li>
-                        <li><code>data-rows="number"</code> - Number of rows for textarea (default: 5)</li>
-                    </ul>
-                </li>
-            </ul>
-        </div>
-        
-        <h2>Examples</h2>
-        
-        <h3>Basic Reveal</h3>
-        <div class="reveal">
-            <p>This content is hidden until the reveal button is clicked.</p>
-            <p>Perfect for answers, solutions, or additional information.</p>
-        </div>
-        
-        <h3>Custom Button Text</h3>
-        <div class="reveal" data-button="Show Answer">
-            <p>The answer is: 42</p>
-            <p>This is the answer to the ultimate question of life, the universe, and everything.</p>
-        </div>
-        
-        <h3>Active Reveal with Text Input</h3>
-        <div class="active-reveal" data-min-text="10" data-placeholder="Type at least 10 characters to enable the reveal button" data-button="Show Solution">
-            <p>This content requires the user to type at least 10 characters before the reveal button becomes active.</p>
-            <p>Great for encouraging reflection before showing answers.</p>
-        </div>
-        
-        <h3>Active Reveal with Custom Rows</h3>
-        <div class="active-reveal" data-min-text="20" data-placeholder="Write your thoughts here..." data-rows="3" data-button="Show Hint">
-            <p>This hint will only be revealed after you write at least 20 characters.</p>
-            <p>The textarea has been customized to 3 rows instead of the default 5.</p>
-        </div>
-        
-        <h3>Reveal with Complex Content</h3>
-        <div class="reveal" data-button="Show Detailed Explanation">
-            <h4>Detailed Solution</h4>
-            <p>Here's a step-by-step breakdown:</p>
-            <ol>
-                <li>First, identify the problem</li>
-                <li>Next, gather relevant information</li>
-                <li>Then, analyze the data</li>
-                <li>Finally, implement the solution</li>
-            </ol>
-            <div class="note">
-                <p><strong>Note:</strong> This approach works best for complex problems.</p>
             </div>
-        </div>
-        
-        <h3>Multiple Reveals</h3>
-        <div class="reveal" data-button="Show Hint 1">
-            <p>This is the first hint.</p>
-        </div>
-        
-        <div class="reveal" data-button="Show Hint 2">
-            <p>This is the second hint.</p>
-        </div>
-        
-        <div class="reveal" data-button="Show Final Answer">
-            <p>This is the final answer.</p>
-        </div>
-        
-        <h3>Reveal with Interactive Content</h3>
-        <div class="reveal" data-button="Show Interactive Example">
-            <div class="knowledge-check">
-                <ol>
-                    <li>
-                        <p>What is the capital of Canada?</p>
-                        <p>@ Ottawa is the capital city of Canada.</p>
+
+            <div class="note">
+                <h2>Description</h2>
+                <p>Creates click-to-show content functionality with optional text input requirements. Perfect for answers, solutions, hints, or any content that should be revealed on demand. Supports both simple reveal and active reveal with user input requirements.</p>
+            </div>
+
+            <div class="note">
+                <h2>Usage</h2>
+                <p>Wrap content in a container with class <code>.reveal</code> or <code>.active-reveal</code>. The system automatically creates reveal buttons and handles the show/hide functionality.</p>
+
+                <h3>Available Options</h3>
+                <ul>
+                <li><strong>CSS Classes:</strong>
                         <ul>
-                            <li>*Ottawa</li>
-                            <li>Toronto</li>
-                            <li>Vancouver</li>
-                            <li>Montreal</li>
+                            <li><code>.reveal</code> - Simple click-to-show content</li>
+                            <li><code>.active-reveal</code> - Requires user input before revealing</li>
+                            <li><code>.reveal.plain</code> - Modifier for <code>.reveal</code> that removes the bordered panel container</li>
                         </ul>
                     </li>
+                <li><strong>Data Attributes:</strong>
+                        <ul>
+                            <li><code>data-button="text"</code> - Custom text for reveal button (default: "Reveal")</li>
+                            <li><code>data-min-text="number"</code> - Minimum characters required for active-reveal</li>
+                            <li><code>data-placeholder="text"</code> - Placeholder text for textarea</li>
+                            <li><code>data-rows="number"</code> - Number of rows for textarea (default: 5)</li>
+                        </ul>
+                    </li>
+                </ul>
+            </div>
+
+            <h2>Examples</h2>
+
+            <h3>Basic Reveal</h3>
+            <div class="reveal">
+                <p>This content is hidden until the reveal button is clicked.</p>
+                <p>Perfect for answers, solutions, or additional information.</p>
+            </div>
+
+            <h3>Plain Reveal (No Container)</h3>
+            <div class="reveal plain" data-button="Show Content">
+                <p>This content is revealed without a bordered panel or background.</p>
+                <p>Add the <code>.plain</code> modifier to <code>.reveal</code> when you want the reveal behavior to blend in with surrounding content.</p>
+                </div>
+            </div>
+
+            <h3>Custom Button Text</h3>
+            <div class="reveal" data-button="Show Answer">
+                <p>The answer is: 42</p>
+                <p>This is the answer to the ultimate question of life, the universe, and everything.</p>
+            </div>
+
+            <h3>Active Reveal with Text Input</h3>
+            <div class="active-reveal" data-min-text="10" data-placeholder="Type at least 10 characters to enable the reveal button" data-button="Show Solution">
+                <p>This content requires the user to type at least 10 characters before the reveal button becomes active.</p>
+                <p>Great for encouraging reflection before showing answers.</p>
+            </div>
+
+            <h3>Active Reveal with Custom Rows</h3>
+            <div class="active-reveal" data-min-text="20" data-placeholder="Write your thoughts here..." data-rows="3" data-button="Show Hint">
+                <p>This hint will only be revealed after you write at least 20 characters.</p>
+                <p>The textarea has been customized to 3 rows instead of the default 5.</p>
+            </div>
+
+            <h3>Reveal with Complex Content</h3>
+            <div class="reveal" data-button="Show Detailed Explanation">
+                <h4>Detailed Solution</h4>
+                <p>Here's a step-by-step breakdown:</p>
+                <ol>
+                    <li>First, identify the problem</li>
+                    <li>Next, gather relevant information</li>
+                    <li>Then, analyze the data</li>
+                    <li>Finally, implement the solution</li>
                 </ol>
+                <div class="note">
+                    <p><strong>Note:</strong> This approach works best for complex problems.</p>
+                </div>
+            </div>
+
+            <h3>Multiple Reveals</h3>
+            <div class="reveal" data-button="Show Hint 1">
+                <p>This is the first hint.</p>
+            </div>
+
+            <div class="reveal" data-button="Show Hint 2">
+                <p>This is the second hint.</p>
+            </div>
+
+            <div class="reveal" data-button="Show Final Answer">
+                <p>This is the final answer.</p>
+            </div>
+
+            <h3>Reveal with Interactive Content</h3>
+            <div class="reveal" data-button="Show Interactive Example">
+                <div class="knowledge-check">
+                    <ol>
+                        <li>
+                            <p>What is the capital of Canada?</p>
+                            <p>@ Ottawa is the capital city of Canada.</p>
+                            <ul>
+                                <li>*Ottawa</li>
+                                <li>Toronto</li>
+                                <li>Vancouver</li>
+                                <li>Montreal</li>
+                            </ul>
+                        </li>
+                    </ol>
+                </div>
+            </div>
+
+            <div class="note">
+                <h2>Notes</h2>
+                <ul>
+                    <li>Reveal content is hidden by default and shown with slide animation</li>
+                    <li>Use <code>.reveal</code> for simple click-to-show functionality</li>
+                    <li>Use <code>.active-reveal</code> to require user input before revealing</li>
+                    <li>Custom button text with <code>data-button</code> attribute</li>
+                    <li>Minimum text length with <code>data-min-text</code> attribute</li>
+                    <li>Custom placeholder text with <code>data-placeholder</code> attribute</li>
+                    <li>Custom textarea rows with <code>data-rows</code> attribute</li>
+                    <li>Reveal content works well with other interactive elements</li>
+                    <li>Content is automatically shown when printing</li>
+                    <li>Perfect for progressive disclosure of information</li>
+                </ul>
             </div>
         </div>
-        
-        <div class="note">
-            <h2>Notes</h2>
-            <ul>
-                <li>Reveal content is hidden by default and shown with slide animation</li>
-                <li>Use <code>.reveal</code> for simple click-to-show functionality</li>
-                <li>Use <code>.active-reveal</code> to require user input before revealing</li>
-                <li>Custom button text with <code>data-button</code> attribute</li>
-                <li>Minimum text length with <code>data-min-text</code> attribute</li>
-                <li>Custom placeholder text with <code>data-placeholder</code> attribute</li>
-                <li>Custom textarea rows with <code>data-rows</code> attribute</li>
-                <li>Reveal content works well with other interactive elements</li>
-                <li>Content is automatically shown when printing</li>
-                <li>Perfect for progressive disclosure of information</li>
-            </ul>
-        </div>
-    </div>
-    <script src="js/lat.js"></script>
-</body>
+        <script src="js/lat.js"></script>
+    </body>
 </html>
