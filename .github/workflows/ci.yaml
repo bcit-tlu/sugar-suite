@@ -83,20 +83,22 @@ jobs:
 
       - name: Cosign login (OCI)
         env:
-          TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REGISTRY: ${{ env.REGISTRY }}
           ACTOR: ${{ github.actor }}
         run: |
-          echo "${TOKEN}" | \
+          echo "${GITHUB_TOKEN}" | \
             cosign login "${REGISTRY}" \
             -u "${ACTOR}" \
             --password-stdin
 
       - name: Helm login (OCI)
         env:
-          TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REGISTRY: ${{ env.REGISTRY }}
           ACTOR: ${{ github.actor }}
         run: |
-          echo "${TOKEN}" | \
+          echo "${GITHUB_TOKEN}" | \
             helm registry login "${REGISTRY}" \
             -u "${ACTOR}" \
             --password-stdin
@@ -105,14 +107,13 @@ jobs:
         shell: bash
         env:
           VERSION: ${{ needs.build-sugar-suite.outputs.rc_version }}
-          REPOSITORY: ${{ github.repository }}
+          OCI_BASE: oci://${{ env.REGISTRY }}/${{ github.repository }}/charts
+          IMAGE_BASE: ${{ env.REGISTRY }}/${{ github.repository }}/charts
         run: |
           set -euo pipefail
 
-          OCI_BASE="oci://${REGISTRY}/${REPOSITORY}/charts"
-          IMAGE_BASE="${REGISTRY}/${REPOSITORY}/charts"
           CHART_DIR="charts"
-          CHART_NAME=$(awk '/^name:/{print $2; exit}' "${CHART_DIR}/Chart.yaml")
+          CHART_NAME=$(yq '.name' "${CHART_DIR}/Chart.yaml")
           DEST_DIR="/tmp/charts"
           mkdir -p "${DEST_DIR}"
 
