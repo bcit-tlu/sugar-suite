@@ -44,7 +44,7 @@ help:
 	@echo "  chart       → pull/unpack app chart (clobbers existing files)"
 	@echo "                  - set APP_CHART_URL to override default \"oci://ghcr.io/$${ORG_NAME}/oci/$${APP_NAME}\""
 	@echo ""
-	@echo "  nix-shell -p {nixPackage}           → enter nix shell with specific package"
+	@echo "  nix-shell -p {binary}              → run tools from a temporary nix shell"
 	@echo "  helm repo add {repoName} {repoURL}  → add a helm repository"
 	@echo "  kubeconform|kubeval {file}          → validate Kubernetes YAML files"
 	@echo ""

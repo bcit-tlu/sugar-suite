@@ -1,7 +1,6 @@
 name: "[CI] Lint, build & publish"
 
-# Readable run titles in the Actions UI: PR runs show the PR number and
-# title; main pushes show the head commit subject.
+# PR runs show PR title; main runs show head commit subject.
 run-name: >-
   ${{ github.event_name == 'pull_request'
       && format('PR #{0} — {1}', github.event.pull_request.number, github.event.pull_request.title)
@@ -16,17 +15,12 @@ on:
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
-# Least-privilege default: only read access at the workflow level.
-# Jobs that need more elevate locally.
+# Default to least privilege; jobs elevate only when needed.
 permissions:
   contents: read
 
 jobs:
-  # ── Quality gates ─────────────────────────────────────────
-  #
-  # Helm lint runs on every push + PR as a parallel quality gate.
-  # Its failure breaks the workflow status but does not block the
-  # image build (surfaced via branch protection required check).
+  # Chart quality gate
 
   helm-lint:
     runs-on: ubuntu-latest
@@ -49,16 +43,7 @@ jobs:
                 -schema-location 'https://raw.githubusercontent.com/datreeio/CRDs-catalog/main/{{.Group}}/{{.ResourceKind}}_{{.ResourceAPIVersion}}.json' \
                 -ignore-missing-schemas
 
-  # ── Container image ──────────────────────────────────────
-  #
-  # The shared reusable workflow handles checkout, change
-  # detection, Docker build/push, Cosign signing, and Trivy
-  # scanning.
-  #
-  # `helm-lint` is intentionally NOT in `needs` — it runs as an
-  # independent parallel job whose failure surfaces via branch
-  # protection (required status check) rather than delaying or
-  # blocking image builds.
+  # Container image build/publish (reusable workflow)
 
   build-sugar-suite:
     uses: bcit-tlu/.github/.github/workflows/oci-build.yaml@main
@@ -67,7 +52,7 @@ jobs:
       packages: write
       id-token: write
       security-events: write
-      actions: read            # Required by codeql-action/upload-sarif on private repos
+      actions: read
     with:
       component: sugar-suite
       image_name: sugar-suite
@@ -75,12 +60,7 @@ jobs:
       tag_prefix: "v"
     secrets: inherit
 
-  # ── Helm chart → OCI registry (main push) ─────────────────
-  #
-  # Publishes the chart with the same RC version that the image
-  # received so the chart and app tags stay in lockstep.  Only
-  # runs on main pushes when the component actually changed.
-  # Release-time chart publishing is handled by helm-publish.yaml.
+  # Publish chart from main pushes using the image RC version.
 
   helm-publish:
     needs: [helm-lint, build-sugar-suite]
@@ -91,7 +71,7 @@ jobs:
     permissions:
       contents: read
       packages: write
-      id-token: write          # Cosign keyless (Sigstore OIDC)
+      id-token: write
     env:
       REGISTRY: ghcr.io
     steps:
@@ -102,28 +82,35 @@ jobs:
       - uses: sigstore/cosign-installer@v3
 
       - name: Cosign login (OCI)
+        env:
+          TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ACTOR: ${{ github.actor }}
         run: |
-          echo "${{ secrets.GITHUB_TOKEN }}" | \
-            cosign login "${{ env.REGISTRY }}" \
-            -u "${{ github.actor }}" \
+          echo "${TOKEN}" | \
+            cosign login "${REGISTRY}" \
+            -u "${ACTOR}" \
             --password-stdin
 
       - name: Helm login (OCI)
+        env:
+          TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ACTOR: ${{ github.actor }}
         run: |
-          echo "${{ secrets.GITHUB_TOKEN }}" | \
-            helm registry login "${{ env.REGISTRY }}" \
-            -u "${{ github.actor }}" \
+          echo "${TOKEN}" | \
+            helm registry login "${REGISTRY}" \
+            -u "${ACTOR}" \
             --password-stdin
 
       - name: Package, push & sign chart
         shell: bash
         env:
           VERSION: ${{ needs.build-sugar-suite.outputs.rc_version }}
+          REPOSITORY: ${{ github.repository }}
         run: |
           set -euo pipefail
 
-          OCI_BASE="oci://${{ env.REGISTRY }}/${{ github.repository }}/charts"
-          IMAGE_BASE="${{ env.REGISTRY }}/${{ github.repository }}/charts"
+          OCI_BASE="oci://${REGISTRY}/${REPOSITORY}/charts"
+          IMAGE_BASE="${REGISTRY}/${REPOSITORY}/charts"
           CHART_DIR="charts"
           CHART_NAME=$(awk '/^name:/{print $2; exit}' "${CHART_DIR}/Chart.yaml")
           DEST_DIR="/tmp/charts"

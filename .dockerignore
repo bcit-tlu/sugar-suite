@@ -1,4 +1,4 @@
-# OS / Editor junk
+# OS/editor
 .DS_Store
 Thumbs.db
 *.swp
@@ -29,15 +29,14 @@ build
 out
 coverage
 
-# Kubernetes / Helm artifacts
-charts/**/.tgz
+# Helm artifacts
+charts/**/*.tgz
 .helmignore
 
-# Secrets / Env
+# Secrets/env
 .env
 .env.*
-!.env.example   # keep template/example
+!.env.example
 
-# Locally-retrieved app chart
-app-chart
-app-chart/**
+# Local pulled chart
+app-chart/

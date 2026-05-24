@@ -13,10 +13,11 @@ on:
 permissions:
   contents: read
   packages: write
-  id-token: write          # Cosign keyless (Sigstore OIDC)
+  id-token: write
 
 env:
   REGISTRY: ghcr.io
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
 jobs:
   publish:
@@ -46,30 +47,39 @@ jobs:
 
       - name: Cosign login (OCI)
         if: steps.parse.outputs.publish == 'true'
+        env:
+          TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ACTOR: ${{ github.actor }}
         run: |
-          echo "${{ secrets.GITHUB_TOKEN }}" | \
-            cosign login "${{ env.REGISTRY }}" \
-            -u "${{ github.actor }}" \
+          echo "${TOKEN}" | \
+            cosign login "${REGISTRY}" \
+            -u "${ACTOR}" \
             --password-stdin
 
       - name: Helm login (OCI)
         if: steps.parse.outputs.publish == 'true'
         shell: bash
+        env:
+          TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ACTOR: ${{ github.actor }}
         run: |
-          echo "${{ secrets.GITHUB_TOKEN }}" | \
-            helm registry login "${{ env.REGISTRY }}" \
-            -u "${{ github.actor }}" \
+          echo "${TOKEN}" | \
+            helm registry login "${REGISTRY}" \
+            -u "${ACTOR}" \
             --password-stdin
 
       - name: Package and push chart
         id: push
         if: steps.parse.outputs.publish == 'true'
         shell: bash
+        env:
+          VERSION: ${{ steps.parse.outputs.version }}
+          REPOSITORY: ${{ github.repository }}
         run: |
           set -euo pipefail
 
-          VERSION="${{ steps.parse.outputs.version }}"
           CHART_DIR="charts"
+          CHART_NAME=$(awk '/^name:/{print $2; exit}' "${CHART_DIR}/Chart.yaml")
           DEST_DIR="/tmp/charts"
 
           mkdir -p "${DEST_DIR}"
@@ -80,16 +90,18 @@ jobs:
             -d "${DEST_DIR}"
 
           PUSH_OUT=$(helm push \
-            "${DEST_DIR}/sugar-suite-${VERSION}.tgz" \
-            "oci://${{ env.REGISTRY }}/${{ github.repository }}/charts" 2>&1) || true
+            "${DEST_DIR}/${CHART_NAME}-${VERSION}.tgz" \
+            "oci://${REGISTRY}/${REPOSITORY}/charts" 2>&1) || true
           echo "${PUSH_OUT}"
           printf '%s\n' "${PUSH_OUT}" | grep -q '^Digest:' || { echo '::error::helm push failed'; exit 1; }
 
           DIGEST=$(printf '%s\n' "${PUSH_OUT}" | awk '/^Digest:/{print $2}')
           echo "digest=${DIGEST}" >> "$GITHUB_OUTPUT"
+          echo "chart_name=${CHART_NAME}" >> "$GITHUB_OUTPUT"
 
       - name: Sign chart
         if: steps.parse.outputs.publish == 'true' && steps.push.outputs.digest != ''
+        env:
+          CHART_REF: ${{ env.REGISTRY }}/${{ github.repository }}/charts/${{ steps.push.outputs.chart_name }}@${{ steps.push.outputs.digest }}
         run: |
-          cosign sign --yes \
-            "${{ env.REGISTRY }}/${{ github.repository }}/charts/sugar-suite@${{ steps.push.outputs.digest }}"
+          cosign sign --yes "${CHART_REF}"
