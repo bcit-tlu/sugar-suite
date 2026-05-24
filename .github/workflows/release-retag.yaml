@@ -136,7 +136,7 @@ jobs:
         if: steps.parse.outputs.match == 'true'
 
       - name: Sign release image
-        if: steps.parse.outputs.match == 'true'
+        if: steps.parse.outputs.match == 'true' && steps.retag.outputs.digest != ''
         env:
           IMAGE: ${{ steps.retag.outputs.image }}
           DIGEST: ${{ steps.retag.outputs.digest }}
