@@ -27,8 +27,7 @@ jobs:
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
 
-      # `release-as` is one-shot. Once manifest catches up, remove it;
-      # otherwise future semver bumps are pinned and releases stall.
+      # Guard: stale release-as pins block future semver bumps.
       - uses: actions/checkout@v6
         if: steps.rp.outputs.releases_created != 'true'
       - name: Guard against stale `release-as` entries
@@ -52,8 +51,7 @@ jobs:
               sys.exit(1)
           PY
 
-  # Releases made with GITHUB_TOKEN do not trigger release/tag workflows.
-  # Dispatch publish workflows explicitly for the new tag.
+  # GITHUB_TOKEN releases don't trigger tag workflows; dispatch explicitly.
   dispatch-publish:
     needs: release
     if: needs.release.outputs.releases_created == 'true'
