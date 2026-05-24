@@ -2,6 +2,7 @@ apiVersion: skaffold/v4beta13
 kind: Config
 metadata:
   name: app
+
 build:
   insecureRegistries:
     - registry
@@ -9,6 +10,7 @@ build:
     - image: app
   local:
     useBuildkit: true
+
 deploy:
   helm:
     releases:
@@ -20,32 +22,4 @@ deploy:
           frontend.image.registry: registry.localhost:5000
           frontend.image.repository: app
         setValueTemplates:
-          # frontend.image.registry: "{{.IMAGE_DOMAIN_app}}"
-          # frontend.image.repository: "{{.IMAGE_REPO_NO_DOMAIN_app}}"
           frontend.image.tag: "{{.IMAGE_TAG_app}}"
-
-# FUTURE
-# - see https://skaffold.dev/docs/verify/ and https://skaffold.dev/docs/testers/structure/
-# 
-# profiles:
-#   - name: quickcheck
-#     test:
-#       - image: app
-#         structureTests:
-#           - './test/example/container-structure-test.yaml'
-# verify:
-#   - name: alpine-wget
-#     container:
-#       name: alpine-wget
-#       image: alpine:3.15.4
-#       command: ["/bin/sh"]
-#       args: ["-c", "wget http://www.google.com"]
-# test:
-#   - image: app
-#     structureTests:
-#       - './test/example/container-structure-test.yaml'
-#     structureTestsArgs:
-#       - --driver=tar
-#       - -q
-#       - --no-color
-#       -  --test-report=TEST_REPORT_NAME

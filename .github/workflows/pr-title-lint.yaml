@@ -1,14 +1,14 @@
 name: pr-title-lint
 
-# Gate non-conventional PR titles at the merge boundary so unparseable
-# squash-merge commits can't land on main and silently starve
-# release-please of the feat:/fix:/BREAKING signals it uses to open
-# release PRs.
+# Enforce Conventional Commit PR titles so release-please can parse changes.
 
 on:
   pull_request_target:
     types: [opened, edited, reopened, synchronize]
     branches: [main]
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
 permissions:
   contents: read
@@ -49,25 +49,25 @@ jobs:
         with:
           header: pr-title-lint
           message: |
-            ## PR title does not match Conventional Commits
+            ## PR title must follow Conventional Commits
 
-            **Why this matters (tl;dr)** — release-please reads PR titles on `main` to decide whether to cut a release, what version bump to apply, and how to group CHANGELOG entries. A title that doesn't parse is silently dropped; no release PR opens, no error, workflow still exits 0.
-
-            **Required structure**
+            release-please uses PR titles on `main` to determine version bumps and changelog entries.
 
             ```
             <type>[optional scope][!]: <subject>
             ```
 
-            - `<type>` — `feat` / `fix` / `docs` / `style` / `refactor` / `perf` / `test` / `build` / `ci` / `chore` / `revert`
-            - `<subject>` — lowercase first letter, imperative mood, no trailing period
-            - add `!` (or `BREAKING CHANGE:` in the body) for breaking changes
+            - `type`: `feat`, `fix`, `docs`, `style`, `refactor`, `perf`, `test`, `build`, `ci`, `chore`, `revert`
+            - `subject`: start lowercase, imperative mood, no trailing period
+            - breaking change: add `!` (or `BREAKING CHANGE:` in body)
 
-            **Good** — `feat: add search page`, `fix: correct broken nav link`, `ci: tighten workflow permissions`
+            Examples:
+            - ✅ `feat: add search page`
+            - ✅ `fix: correct broken nav link`
+            - ❌ `Add search page`
+            - ❌ `feat: Add search page`
 
-            **Bad** — `Add search page` (no type), `feat: Add search page` (uppercase subject)
-
-            Edit the PR title in the GitHub UI — the check re-runs automatically within seconds, no push needed.
+            Edit the PR title in GitHub; this check reruns automatically.
 
       - name: Clear failure explainer on success
         if: success() && steps.lint.outcome == 'success'

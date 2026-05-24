@@ -16,6 +16,7 @@ services:
       - CI=false
       - NODE_ENV=development
 
+    # Optional Compose watch config:
     # https://docs.docker.com/compose/how-tos/file-watch/
     # develop:
     #   watch:

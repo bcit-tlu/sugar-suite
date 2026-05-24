@@ -1,4 +1,4 @@
-# OS / Editor Junk
+# OS/editor
 .DS_Store
 Thumbs.db
 *.swp
@@ -23,17 +23,16 @@ build/
 out/
 coverage/
 
-# Local scratch / caches (scoped to repo root)
+# Local scratch/cache
 tmp/
 .cache/
 .dockerignore-local
 
-# Kubernetes
-charts/**/.tgz
+# Helm artifacts
+charts/**/*.tgz
 
-# Locally-retrieved app chart
-app-chart
-app-chart/**
+# Local pulled chart
+app-chart/
 
 # Secrets
 **/secrets*

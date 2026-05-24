@@ -1,9 +1,8 @@
 name: ${APP_NAME:-sugar-suite}
 
-# Builds and runs the final production image (nginx serving /dist) locally.
-# Usage:
-#   docker compose -f docker-compose.prod.yml up --build
-#   open http://localhost:8080
+# Run the production nginx image locally.
+# docker compose -f docker-compose.prod.yml up --build
+# open http://localhost:8080
 
 services:
   app:
