@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.1.20](https://github.com/bcit-tlu/sugar-suite/compare/v0.5.3...v1.1.20) (2026-05-25)
+
+
+### Miscellaneous Chores
+
+* release 1.1.20 ([1c734a5](https://github.com/bcit-tlu/sugar-suite/commit/1c734a5d8bf7c279305357d72238ea1302ba1efd))
+
 ## [0.5.3](https://github.com/bcit-tlu/sugar-suite/compare/v0.5.2...v0.5.3) (2026-05-25)
 
 
