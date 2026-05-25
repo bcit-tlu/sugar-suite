@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.5.3](https://github.com/bcit-tlu/sugar-suite/compare/v0.5.2...v0.5.3) (2026-05-25)
+
+
+### Bug Fixes
+
+* improve hyperlink contrast and unify link styling, rename love-hate to link-states ([#20](https://github.com/bcit-tlu/sugar-suite/issues/20)) ([9cc8ce8](https://github.com/bcit-tlu/sugar-suite/commit/9cc8ce892d1269e7760e1d9c51737ccefb6a442c))
+
 ## [0.5.2](https://github.com/bcit-tlu/sugar-suite/compare/v0.5.1...v0.5.2) (2026-05-19)
 
 
