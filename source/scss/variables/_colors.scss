@@ -47,9 +47,10 @@ $gray-light: color.adjust($gray-base, $lightness:  46.7%) !default; // #777
 $gray-lighter: color.adjust($gray-base, $lightness:  93.5%) !default; // #eee
 $white: #fff;
 $off-white: #f1f1ee;
-
+$cobalt-blue: #0047B3;
+$deep-purple: #5E35B1;
 // Hyperlink colors
-$global-link-default-color: $secondary-color-dark !default;
-$global-link-visited-color: $primary-color !default;
-$global-link-hover-color: $secondary-color !default;
-$global-link-active-color: $secondary-color !default;
+$global-link-default-color: $cobalt-blue !default;
+$global-link-visited-color: $deep-purple !default;
+$global-link-hover-color: $cobalt-blue !default;
+$global-link-active-color: $cobalt-blue !default;

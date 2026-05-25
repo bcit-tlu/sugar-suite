@@ -7,21 +7,25 @@ a {
 	transition: all .3s ease;
 	&:link {
 		color: $global-link-default-color;
-		border-bottom: 1px dotted $global-link-default-color;
-		outline: 0;
+		border-bottom: 2px solid $global-link-default-color;
 	}
 	&:visited {
 		color: $global-link-visited-color;
-		border-bottom: 1px dotted $global-link-visited-color;
-		outline: 0;
+		border-bottom: 2px solid $global-link-visited-color;
 	}
 	&:hover,
 	&:focus {
 		color: $global-link-hover-color;
-		border-bottom: 1px solid $global-link-hover-color;
+		border-bottom: 2px solid $global-link-hover-color;
+	}
+	&:focus-visible {
+		outline: 2px solid $global-link-hover-color;
+		outline-offset: 2px;
+		border-radius: 2px;
+		border: none;
 	}
 	&:active {
 		color: $global-link-active-color;
-		top: 1px;
+		top: 2px;
 	}
 }

@@ -18,6 +18,17 @@ docker compose up --build
 # open http://localhost:8080
 ```
 
+## Production (local)
+
+To build and run the production image locally:
+
+```bash
+docker compose -f docker-compose.prod.yml up --build
+
+# open http://localhost:8080
+```
+
+
 ## Deploying
 
 **Develop in GitHub Codespaces to ensure all commands/packages are available.**

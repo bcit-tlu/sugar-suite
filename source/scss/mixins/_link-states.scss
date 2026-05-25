@@ -1,22 +1,23 @@
-@mixin love-hate($link,$visited:false,$hover:false,$active:false) {
+@mixin link-states($link,$visited:false,$hover:false,$active:false) {
 	a:link {
 		color: $link;
-		border-bottom: 1px dotted $link !important;	
+		border-bottom: 2px solid $link !important;
 	}
-		
+
 	a {
 		color: $link !important;
-		border-bottom: 1px dotted $link !important;	
+		border-bottom: 2px solid $link !important;
 		@if $visited {
 			&:visited {
 				color: $visited !important;
+				border-bottom: 2px solid $visited !important;
 			}
 		}
 		@if $hover {
 			&:hover,
 			&:focus {
 				color: $hover !important;
-				border-bottom: 1px solid $hover !important;
+				border-bottom: 2px solid $hover !important;
 			}
 		}
 		@if $active {
