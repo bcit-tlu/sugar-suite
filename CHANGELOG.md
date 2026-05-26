@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.1.21](https://github.com/bcit-tlu/sugar-suite/compare/v1.1.20...v1.1.21) (2026-05-26)
+
+
+### Bug Fixes
+
+* upgrade Alpine packages in runtime stage to reduce CVE exposure ([d78c33c](https://github.com/bcit-tlu/sugar-suite/commit/d78c33c8e916beceb818e4c9958ebbf635d6e43e))
+
 ## [1.1.20](https://github.com/bcit-tlu/sugar-suite/compare/v0.5.3...v1.1.20) (2026-05-25)
 
 
