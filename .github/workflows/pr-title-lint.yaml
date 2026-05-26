@@ -45,7 +45,7 @@ jobs:
 
       - name: Post failure explainer comment
         if: failure() && steps.lint.outcome == 'failure'
-        uses: marocchino/sticky-pull-request-comment@v2
+        uses: marocchino/sticky-pull-request-comment@v3
         with:
           header: pr-title-lint
           message: |
@@ -71,7 +71,7 @@ jobs:
 
       - name: Clear failure explainer on success
         if: success() && steps.lint.outcome == 'success'
-        uses: marocchino/sticky-pull-request-comment@v2
+        uses: marocchino/sticky-pull-request-comment@v3
         with:
           header: pr-title-lint
           delete: true
