@@ -14,7 +14,7 @@
   "devDependencies": {
     "vite": "^8.0.14",
     "sass": "^1.99.0",
-    "postcss": "^8.5.12",
+    "postcss": "^8.5.15",
     "autoprefixer": "^10.5.0",
     "cssnano": "^7.1.7",
     "terser": "^5.46.2",
