@@ -23,7 +23,7 @@
     "concurrently": "^9.2.1",
     "jquery": "^4.0.0",
     "jest": "^30.3.0",
-    "jest-environment-jsdom": "^30.3.0",
+    "jest-environment-jsdom": "^30.4.1",
     "@testing-library/jest-dom": "^6.9.1"
   }
 }
