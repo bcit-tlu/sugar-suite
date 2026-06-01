@@ -12,8 +12,20 @@ Sugar Suite is a framework used to design and style online courses. It is built 
 
 ### Developing
 
+The default `docker-compose.yml` runs the `builder` stage with Vite in preview/watch mode against your local source (bind-mounted into `/app`). Use this for day-to-day work.
+
 ```bash
 docker compose up --build
+
+# open http://localhost:9000
+```
+
+### Production preview
+
+`docker-compose.prod.yml` builds the final multi-stage image (nginx serving the compiled `/dist`) and runs it locally. Use this to validate the exact artifact that ships to the cluster — no source bind mount, no dev server, `NODE_ENV=production`.
+
+```bash
+docker compose -f docker-compose.prod.yml up --build
 
 # open http://localhost:8080
 ```

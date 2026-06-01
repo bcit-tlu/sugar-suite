@@ -1,6 +1,6 @@
 // SHOW/HIDE CONTENT (#REVEAL)
 
-$(document).ready(function () {
+$(function () {
     $(".reveal, .active-reveal").each(function () {
         // Reveal button text
         var buttonText = $(this).data("button") || "Reveal";
@@ -39,7 +39,7 @@ $(document).ready(function () {
 
             // Turn off textarea listener after reveal button is clicked
             $button.one("click", function (event) {
-                $textarea.off();
+                $textarea.off('keyup');
             });
         }
 
@@ -51,7 +51,7 @@ $(document).ready(function () {
 
     $(".reveal-button").on("click", function () {
         $(this).next().slideToggle("fast").promise().done(function () {
-            if ($(this).find(".line-matching")) {
+            if ($(this).find(".line-matching").length) {
                 $(window).trigger('resize');
             }
         });
