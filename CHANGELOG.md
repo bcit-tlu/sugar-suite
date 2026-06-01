@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.2.0](https://github.com/bcit-tlu/sugar-suite/compare/v1.1.21...v1.2.0) (2026-06-01)
+
+
+### Features
+
+* add plain reveal ([#22](https://github.com/bcit-tlu/sugar-suite/issues/22)) ([4044f62](https://github.com/bcit-tlu/sugar-suite/commit/4044f62119381de074c71822d1891d1fa146b236))
+
 ## [1.1.21](https://github.com/bcit-tlu/sugar-suite/compare/v1.1.20...v1.1.21) (2026-05-26)
 
 
