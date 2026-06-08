@@ -87,7 +87,5 @@ $a: $note-link-active-color;
 }
 
 .callout {
-	&:before {
-		content: none;
-	}
+	@include base-container.no-icon;
 }

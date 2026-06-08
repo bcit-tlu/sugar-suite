@@ -63,9 +63,7 @@ $a: $activity-link-active-color;
 }
 
 .callout-bordered {
-	&:before {
-		content: none;
-	}
+	@include base-container.no-icon;
 }
 
 .activity {
