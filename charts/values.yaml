@@ -45,6 +45,10 @@ zoneAntiAffinity:
   enabled: false
   topologyKey: topology.kubernetes.io/zone
 
+observability:
+  openTelemetry:
+    collectorEndpoint: "opentelemetry-collector.observability.svc:4318"
+
 nodeSelector: {}
 tolerations: []
 affinity: {}

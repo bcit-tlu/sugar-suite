@@ -8,6 +8,7 @@ import autoprefixer from 'autoprefixer'; // css vendor prefixing
 import cssnano from 'cssnano'; // css minification and optimization
 import { compression } from 'vite-plugin-compression2'; // gzip/brotli compression (vite 8 + windows-safe)
 import { minify } from 'terser'; // javascript minification
+import esbuild from 'esbuild'; // bundler for analytics IIFE
 
 const __dirname = resolve(fileURLToPath(import.meta.url), '..'); // get current directory
 
@@ -179,6 +180,26 @@ export default defineConfig({
             const mapBasename = fileName.split('/').pop() + '.map';
             chunk.source += '\n/*# sourceMappingURL=' + mapBasename + ' */';
           }
+        });
+      }
+    },
+    // custom plugin for OTel analytics IIFE bundle
+    {
+      name: 'otel-analytics',
+      async generateBundle() {
+        const result = await esbuild.build({
+          entryPoints: [resolve(__dirname, 'source/js/analytics/init.js')],
+          bundle: true,
+          format: 'iife',
+          minify: true,
+          target: 'es2020',
+          write: false,
+        });
+
+        this.emitFile({
+          type: 'asset',
+          fileName: 'js/otel-analytics.js',
+          source: result.outputFiles[0].text,
         });
       }
     },
