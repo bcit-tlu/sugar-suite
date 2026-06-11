@@ -235,17 +235,23 @@ spec:
               port: http
             initialDelaySeconds: {{ .Values.probes.readiness.initialDelaySeconds }}
             periodSeconds: {{ .Values.probes.readiness.periodSeconds }}
-          {{- if .Values.cdn.enabled }}
           volumeMounts:
+            {{- if .Values.cdn.enabled }}
             - name: html
               mountPath: /usr/share/nginx/html
-          {{- end }}
+            {{- end }}
+            - name: nginx-conf
+              mountPath: /etc/nginx/conf.d
+              readOnly: true
           {{- with .Values.resources }}
           resources:
             {{- toYaml . | nindent 12 }}
           {{- end }}
-      {{- if .Values.cdn.enabled }}
       volumes:
+        {{- if .Values.cdn.enabled }}
         - name: html
           emptyDir: {}
-      {{- end }}
+        {{- end }}
+        - name: nginx-conf
+          configMap:
+            name: {{ include "sugar-suite.fullname" . }}-nginx
