@@ -8,6 +8,7 @@ import autoprefixer from 'autoprefixer'; // css vendor prefixing
 import cssnano from 'cssnano'; // css minification and optimization
 import { compression } from 'vite-plugin-compression2'; // gzip/brotli compression (vite 8 + windows-safe)
 import { minify } from 'terser'; // javascript minification
+import esbuild from 'esbuild'; // bundler for analytics IIFE
 
 const __dirname = resolve(fileURLToPath(import.meta.url), '..'); // get current directory
 
@@ -28,6 +29,17 @@ export default defineConfig({
         });
       },
       async generateBundle() { // runs during bundle generation
+        // bundle OTel analytics IIFE via esbuild (prepended to lat.js)
+        const analyticsResult = await esbuild.build({
+          entryPoints: [resolve(__dirname, 'source/js/analytics/init.js')],
+          bundle: true,
+          format: 'iife',
+          minify: true,
+          target: 'es2020',
+          write: false,
+        });
+        const analyticsIIFE = analyticsResult.outputFiles[0].text;
+
         // process main js features (equivalent to gulp's scripts task)
         const mainJsContent = getModuleContent('source/js/features'); // get concatenated js content
 
@@ -71,7 +83,7 @@ export default defineConfig({
         this.emitFile({ // emit the file to output
           type: 'asset', // file type
           fileName: 'js/lat.js', // output filename
-          source: minifiedMainJs.code + '\n//# sourceMappingURL=lat.js.map' // sibling .map reference
+          source: analyticsIIFE + '\n' + minifiedMainJs.code + '\n//# sourceMappingURL=lat.js.map' // analytics IIFE + features + .map reference
         });
 
         // process experimental js (equivalent to gulp's experimental task)
