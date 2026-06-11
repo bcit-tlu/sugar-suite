@@ -29,6 +29,17 @@ export default defineConfig({
         });
       },
       async generateBundle() { // runs during bundle generation
+        // bundle OTel analytics IIFE via esbuild (prepended to lat.js)
+        const analyticsResult = await esbuild.build({
+          entryPoints: [resolve(__dirname, 'source/js/analytics/init.js')],
+          bundle: true,
+          format: 'iife',
+          minify: true,
+          target: 'es2020',
+          write: false,
+        });
+        const analyticsIIFE = analyticsResult.outputFiles[0].text;
+
         // process main js features (equivalent to gulp's scripts task)
         const mainJsContent = getModuleContent('source/js/features'); // get concatenated js content
 
@@ -72,7 +83,7 @@ export default defineConfig({
         this.emitFile({ // emit the file to output
           type: 'asset', // file type
           fileName: 'js/lat.js', // output filename
-          source: minifiedMainJs.code + '\n//# sourceMappingURL=lat.js.map' // sibling .map reference
+          source: analyticsIIFE + '\n' + minifiedMainJs.code + '\n//# sourceMappingURL=lat.js.map' // analytics IIFE + features + .map reference
         });
 
         // process experimental js (equivalent to gulp's experimental task)
@@ -180,26 +191,6 @@ export default defineConfig({
             const mapBasename = fileName.split('/').pop() + '.map';
             chunk.source += '\n/*# sourceMappingURL=' + mapBasename + ' */';
           }
-        });
-      }
-    },
-    // custom plugin for OTel analytics IIFE bundle
-    {
-      name: 'otel-analytics',
-      async generateBundle() {
-        const result = await esbuild.build({
-          entryPoints: [resolve(__dirname, 'source/js/analytics/init.js')],
-          bundle: true,
-          format: 'iife',
-          minify: true,
-          target: 'es2020',
-          write: false,
-        });
-
-        this.emitFile({
-          type: 'asset',
-          fileName: 'js/otel-analytics.js',
-          source: result.outputFiles[0].text,
         });
       }
     },
