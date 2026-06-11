@@ -422,6 +422,11 @@
 
 
             $cardStack.on("shuffle", function () {
+                if (window.otelAnalytics && window.otelAnalytics.trackEvent) {
+                    window.otelAnalytics.trackEvent('flashcard_shuffle', {
+                        'total_cards': String($cardStack.children('.card').length),
+                    });
+                }
                 $controls.find("button").prop("disabled", true);
                 $(this).addClass('animation');
                 setTimeout(() => {
@@ -452,6 +457,12 @@
                 if (!animating && prevCardComplete) {
                     animating = true;
                     nextCardComplete = false;
+                    if (window.otelAnalytics && window.otelAnalytics.trackEvent) {
+                        window.otelAnalytics.trackEvent('flashcard_navigate', {
+                            'direction': 'next',
+                            'card_index': String(currentCardIndex),
+                        });
+                    }
                     
                     // Add class to hide horizontal scroll during animation
                     $('body').addClass('flashcard-animating');
@@ -504,6 +515,12 @@
                 if (!animating && nextCardComplete) {
                     animating = true;
                     prevCardComplete = false;
+                    if (window.otelAnalytics && window.otelAnalytics.trackEvent) {
+                        window.otelAnalytics.trackEvent('flashcard_navigate', {
+                            'direction': 'prev',
+                            'card_index': String(currentCardIndex),
+                        });
+                    }
                     
                     // Add class to hide horizontal scroll during animation
                     $('body').addClass('flashcard-animating');
@@ -553,6 +570,12 @@
                     const $topCard = $(this).find(".top-card");
                     $topCard.toggleClass("flipped");
                     setCardAria($topCard, $topCard.hasClass("flipped"));
+                    if (window.otelAnalytics && window.otelAnalytics.trackEvent) {
+                        window.otelAnalytics.trackEvent('flashcard_flip', {
+                            'card_index': String(currentCardIndex),
+                            'total_cards': String($cardStack.children('.card').length),
+                        });
+                    }
                     
                     // Allow D2L resize after flip animation
                     setTimeout(() => {

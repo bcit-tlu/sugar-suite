@@ -532,9 +532,23 @@
                 // we are now clicking on an answer so add that to the sequence now for evaluation
                 answerSequence.push(clickObject);
 
+                if (window.otelAnalytics && window.otelAnalytics.trackEvent) {
+                    var lmIndex = $(".line-matching").index(clickObject.closest(".line-matching"));
+                    window.otelAnalytics.trackEvent('line_matching_attempt', {
+                        'question_index': String(lmIndex),
+                    });
+                }
+
                 let answerEvaluations = checkAnswers(answerSequence);
 
                 answerEvaluations.forEach(function (answer, index) {
+                    if (window.otelAnalytics && window.otelAnalytics.trackEvent) {
+                        var lmIdx = $(".line-matching").index(clickObject.closest(".line-matching"));
+                        window.otelAnalytics.trackEvent('line_matching_result', {
+                            'question_index': String(lmIdx),
+                            'is_correct': String(answer),
+                        });
+                    }
                     if (!answer) { // not the answer, reset the sequence
                         answerSequence.splice(-myColumn, myColumn);
                         isClicked = false;
