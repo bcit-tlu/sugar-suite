@@ -43,6 +43,13 @@
 				index.decrement();
 			}
 
+			if (window.otelAnalytics && window.otelAnalytics.trackEvent) {
+				var swapperIndex = $(".swapper").index($swapper);
+				window.otelAnalytics.trackEvent('swapper_toggle', {
+					'swapper_index': String(swapperIndex),
+				});
+			}
+
 			// move back to the top of the swapper
 			$([document.documentElement, document.body]).animate({
 				scrollTop: $(this).closest(".swapper").offset().top

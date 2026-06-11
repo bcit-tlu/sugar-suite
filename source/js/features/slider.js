@@ -92,6 +92,11 @@
 
         // Show slider in fullscreen mode
         $nav.find(".show-fullscreen").on("click", function () {
+            if (window.otelAnalytics && window.otelAnalytics.trackEvent) {
+                window.otelAnalytics.trackEvent('slider_fullscreen', {
+                    'slide_index': String(index.getIndex()),
+                });
+            }
             enterFullScreen();
             var $overlay = $("<div>").addClass("full-screen");
             $slider.append($overlay);
@@ -126,6 +131,13 @@
         function changeImage() {
             var $currentFigure = $figureImage.filter(":visible");
             var isNext = $(this).is(".next");
+            if (window.otelAnalytics && window.otelAnalytics.trackEvent) {
+                window.otelAnalytics.trackEvent('slider_navigate', {
+                    'direction': isNext ? 'next' : 'prev',
+                    'slide_index': String(index.getIndex()),
+                    'total_slides': String($figureImage.length),
+                });
+            }
             var sliderWidth = $slider.width();
             var animateLeftSize, cssLeftSize;
 

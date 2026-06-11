@@ -133,6 +133,19 @@
             // Check for the checkbox parent and children
             var isCheckboxChecked = $(this).prop('checked');
             var $li = $(this).parent("li");
+
+            if (window.otelAnalytics && window.otelAnalytics.trackEvent) {
+                var $allItems = $checklist.find("input[type=checkbox]");
+                var itemIndex = $allItems.index(this);
+                var totalItems = $allItems.length;
+                var completedItems = $checklist.find("input[type=checkbox]:checked").length;
+                window.otelAnalytics.trackEvent('checklist_checked', {
+                    'item_index': String(itemIndex),
+                    'checked': String(isCheckboxChecked),
+                    'total_items': String(totalItems),
+                    'completed_items': String(completedItems),
+                });
+            }
             var $parentListInput = $li.parent("ul, ol").siblings("input");
             var hasParentChecklist = $parentListInput.length;
             var $liSiblings = $li.siblings("li");
