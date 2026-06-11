@@ -46,8 +46,10 @@ This ensures feature modules still work if the analytics script isn't loaded.
 
 | Event | Attributes | When |
 |-------|-----------|------|
-| `knowledge_check_submit` | `question_index`, `question_type` (multiple-choice/true-false/etc) | User submits an answer |
-| `knowledge_check_result` | `question_index`, `is_correct`, `attempts` | After answer is evaluated |
+| `knowledge_check_submit` | `question_index`, `question_type` | User clicks the Check button |
+| `knowledge_check_result` | `question_index`, `is_correct`, `attempts` | After all answers are evaluated |
+
+> **Note:** The knowledge-check form submits all questions at once. `question_index` refers to which knowledge-check component on the page (0-indexed), not individual questions within it. `question_type` is `'mixed'` since a single form can contain multiple question types. `attempts` is `'1'` (no stateful attempt counter exists).
 
 ### Line Matching (`line-matching.js`)
 
