@@ -40,7 +40,7 @@ spec:
       {{- if .Values.cdn.enabled }}
       initContainers:
         - name: cdn-rewrite
-          image: busybox:1.36
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
           command: ["/bin/sh", "-c"]
           args:
             - |
