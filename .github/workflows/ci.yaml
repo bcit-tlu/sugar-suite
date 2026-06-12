@@ -117,6 +117,10 @@ jobs:
           DEST_DIR="/tmp/charts"
           mkdir -p "${DEST_DIR}"
 
+          # Inject commit SHA for CDN immutable path (matched by upload prefix).
+          yq -i '.cdn.commitSha = "${{ github.sha }}"' \
+            "${CHART_DIR}/values.yaml"
+
           helm package "${CHART_DIR}" \
             --version "${VERSION}" \
             --app-version "${VERSION}" \
@@ -136,3 +140,42 @@ jobs:
           fi
 
           cosign sign --yes "${IMAGE_BASE}/${CHART_NAME}@${DIGEST}"
+
+  # Upload static assets to Azure CDN blob storage.
+  # Only on main; reuses the bcit-ltc/.github reusable workflow.
+
+  # Build static assets locally for CDN upload (Docker build is separate).
+  build-assets:
+    needs: build-sugar-suite
+    if: >-
+      github.event_name != 'pull_request'
+      && needs.build-sugar-suite.outputs.rc_version != ''
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+      - run: npm ci
+      - run: npm run build
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dist
+          path: dist/
+
+  cdn-upload:
+    needs: build-assets
+    uses: bcit-tlu/.github/.github/workflows/cdn-upload.yaml@main
+    permissions:
+      contents: read
+    with:
+      dist_dir: "dist"
+      artifact_name: "dist"
+      destination_prefix: ${{ vars.CDN_NAMESPACE }}/${{ github.event.repository.name }}/${{ github.sha }}
+      cdn_account_name: ${{ vars.CDN_ACCOUNT_NAME }}
+      cdn_container: ${{ vars.CDN_CONTAINER }}
+      asset_extensions: "css,js,map,jpg,jpeg,png,webp,gif,svg,ico,mp4,woff,woff2,ttf,otf"
+    secrets:
+      CDN_SAS_TOKEN: ${{ secrets.CDN_SAS_TOKEN }}

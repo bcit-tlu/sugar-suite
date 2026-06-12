@@ -37,6 +37,29 @@ spec:
       tolerations:
         {{- toYaml . | nindent 8 }}
       {{- end }}
+      {{- if .Values.cdn.enabled }}
+      initContainers:
+        - name: cdn-rewrite
+          image: busybox:1.36
+          command: ["/bin/sh", "-c"]
+          args:
+            - |
+              set -e
+              echo "Copying original assets to shared volume..."
+              cp -a /usr/share/nginx/html/. /html/
+              CDN_URL="{{ .Values.cdn.baseUrl }}/{{ .Chart.Name }}/{{ .Values.cdn.commitSha }}"
+              echo "Rewriting asset URLs to CDN base: ${CDN_URL}"
+              {{- range .Values.cdn.prefixPaths }}
+              find /html -name '*.html' -exec \
+                sed -i "s|\"{{ . }}/|\"${CDN_URL}/{{ . }}/|g" {} +
+              find /html -name '*.html' -exec \
+                sed -i "s|'{{ . }}/|'${CDN_URL}/{{ . }}/|g" {} +
+              {{- end }}
+              echo "CDN rewrite complete."
+          volumeMounts:
+            - name: html
+              mountPath: /html
+      {{- end }}
       containers:
         - name: nginx
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
@@ -57,7 +80,23 @@ spec:
               port: http
             initialDelaySeconds: {{ .Values.probes.readiness.initialDelaySeconds }}
             periodSeconds: {{ .Values.probes.readiness.periodSeconds }}
+          volumeMounts:
+            - name: nginx-conf
+              mountPath: /etc/nginx/conf.d
+              readOnly: true
+            {{- if .Values.cdn.enabled }}
+            - name: html
+              mountPath: /usr/share/nginx/html
+            {{- end }}
           {{- with .Values.resources }}
           resources:
             {{- toYaml . | nindent 12 }}
           {{- end }}
+      volumes:
+        - name: nginx-conf
+          configMap:
+            name: {{ include "sugar-suite.fullname" . }}-nginx
+        {{- if .Values.cdn.enabled }}
+        - name: html
+          emptyDir: {}
+        {{- end }}

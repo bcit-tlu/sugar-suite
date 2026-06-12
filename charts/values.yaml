@@ -45,6 +45,22 @@ zoneAntiAffinity:
   enabled: false
   topologyKey: topology.kubernetes.io/zone
 
+observability:
+  openTelemetry:
+    collectorEndpoint: "opentelemetry-collector.observability.svc:4318"
+
+# Deploy-time Azure CDN rewrite (initContainer).
+# When enabled, an initContainer builds an immutable CDN URL using the
+# CI-injected commit SHA (baseUrl + /<Chart.Name>/<sha>), and rewrites
+# relative asset URLs in HTML files for the prefixPaths.
+cdn:
+  enabled: false
+  # CDN root domain (e.g. https://<hostname>.azurefd.net/<container>)
+  baseUrl: ""
+  prefixPaths: []
+  # Commit SHA — injected by CI at chart package time (do not set manually).
+  commitSha: ""
+
 nodeSelector: {}
 tolerations: []
 affinity: {}
