@@ -117,8 +117,9 @@ jobs:
           DEST_DIR="/tmp/charts"
           mkdir -p "${DEST_DIR}"
 
-          # Inject commit SHA for CDN immutable path (matched by upload prefix).
-          yq -i '.cdn.commitSha = "${{ github.sha }}"' \
+          # Inject short commit SHA for CDN immutable path (matched by upload prefix).
+          SHORT_SHA="${GITHUB_SHA::7}"
+          yq -i ".cdn.commitSha = \"${SHORT_SHA}\"" \
             "${CHART_DIR}/values.yaml"
 
           helm package "${CHART_DIR}" \
@@ -153,6 +154,8 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
+    outputs:
+      short_sha: ${{ steps.set-sha.outputs.short_sha }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -160,6 +163,8 @@ jobs:
           node-version: "24"
       - run: npm ci
       - run: npm run build
+      - id: set-sha
+        run: echo "short_sha=${GITHUB_SHA::7}" >> "$GITHUB_OUTPUT"
       - uses: actions/upload-artifact@v4
         with:
           name: dist
@@ -173,7 +178,7 @@ jobs:
     with:
       dist_dir: "dist"
       artifact_name: "dist"
-      destination_prefix: ${{ vars.CDN_NAMESPACE }}/${{ github.event.repository.name }}/${{ github.sha }}
+      destination_prefix: ${{ vars.CDN_NAMESPACE }}/${{ github.event.repository.name }}/${{ needs.build-assets.outputs.short_sha }}
       cdn_account_name: ${{ vars.CDN_ACCOUNT_NAME }}
       cdn_container: ${{ vars.CDN_CONTAINER }}
       asset_extensions: "css,js,map,jpg,jpeg,png,webp,gif,svg,ico,mp4,woff,woff2,ttf,otf"
