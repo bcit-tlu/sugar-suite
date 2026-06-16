@@ -26,10 +26,10 @@ var COMPONENT_SELECTORS = {
 };
 
 function getSessionId() {
-  var id = sessionStorage.getItem('otel_session_id');
+  var id = localStorage.getItem('otel_session_id');
   if (!id) {
     id = crypto.randomUUID();
-    sessionStorage.setItem('otel_session_id', id);
+    localStorage.setItem('otel_session_id', id);
   }
   return id;
 }

@@ -37,6 +37,184 @@ spec:
       tolerations:
         {{- toYaml . | nindent 8 }}
       {{- end }}
+      {{- if .Values.cdn.enabled }}
+      initContainers:
+        - name: cdn-rewrite
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
+          command: ["/bin/sh", "-c"]
+          args:
+            - |
+              set -e
+              echo "Copying original assets to shared volume..."
+              cp -a /usr/share/nginx/html/. /html/
+
+              CDN_URL="{{ .Values.cdn.baseUrl }}/{{ .Chart.Name }}/{{ .Values.cdn.commitSha }}"
+              EXT_PATTERN="{{ join "|" .Values.cdn.assetExtensions }}"
+
+              if [ -z "${EXT_PATTERN}" ]; then
+                echo "No assetExtensions configured; skipping rewrite."
+                exit 0
+              fi
+
+              echo "Rewriting asset URLs to CDN: ${CDN_URL}"
+              echo "Matching extensions: {{ join "," .Values.cdn.assetExtensions }}"
+
+              export CDN_URL EXT_PATTERN
+
+              # HTML rewrite
+              find /html -type f -name '*.html' | while read -r f; do
+                rel="${f#/html/}"
+                rel_dir="$(dirname "$rel")"
+                [ "$rel_dir" = "." ] && rel_dir=""
+                HTML_DIR="$rel_dir" perl -pi -e '
+                  my $cdn  = $ENV{CDN_URL}  // q{};
+                  my $exts = $ENV{EXT_PATTERN} // q{};
+                  my $dir  = $ENV{HTML_DIR}    // q{};
+                  exit 0 unless $cdn && $exts;
+
+                  my $norm = sub {
+                    my ($p) = @_;
+                    my @out;
+                    for my $seg (split m{/+}, $p) {
+                      next if $seg eq q{} || $seg eq q{.};
+                      if ($seg eq q{..}) { pop @out if @out; next; }
+                      push @out, $seg;
+                    }
+                    return join q{/}, @out;
+                  };
+
+                  my $pat = qr{(src|href|data-src)=(["\x27])([^"\x27]+\.(?:$exts)(?:[#?][^"\x27]*)?)\2}i;
+                  s{$pat}{
+                    my ($attr, $q, $path) = ($1, $2, $3);
+                    $path =~ s{^\s+|\s+$}{}g;
+                    if ($path =~ m{://} || ($cdn ne q{} && index($path, $cdn) == 0) || $path =~ m{^(?:[a-zA-Z][a-zA-Z0-9+.+-]*:|//)}) {
+                      "$attr=$q$path$q";
+                    } else {
+                      my $p = $path;
+                      $p =~ s{^\./}{};
+                      if ($p =~ m{^/}) { $p =~ s{^/}{}; }
+                      else { $p = $dir ? "$dir/$p" : $p; }
+                      $p = $norm->($p);
+                      "$attr=$q$cdn/$p$q";
+                    }
+                  }eg;
+                ' "$f"
+              done
+
+              # CSS rewrite
+              find /html -type f -name '*.css' | while read -r f; do
+                rel="${f#/html/}"
+                rel_dir="$(dirname "$rel")"
+                [ "$rel_dir" = "." ] && rel_dir=""
+                CSS_DIR="$rel_dir" perl -pi -e '
+                  my $cdn  = $ENV{CDN_URL}  // q{};
+                  my $exts = $ENV{EXT_PATTERN} // q{};
+                  my $dir  = $ENV{CSS_DIR}     // q{};
+                  exit 0 unless $cdn && $exts;
+
+                  my $norm = sub {
+                    my ($p) = @_;
+                    my @out;
+                    for my $seg (split m{/+}, $p) {
+                      next if $seg eq q{} || $seg eq q{.};
+                      if ($seg eq q{..}) { pop @out if @out; next; }
+                      push @out, $seg;
+                    }
+                    return join q{/}, @out;
+                  };
+
+                  my $is_abs = sub {
+                    my ($p) = @_;
+                    $p =~ s{^\s+|\s+$}{}g;
+                    return 1 if $p =~ m{://};
+                    return 1 if $cdn ne q{} && index($p, $cdn) == 0;
+                    return $p =~ m{^(?:[a-zA-Z][a-zA-Z0-9+.+-]*:|//|data:)}i;
+                  };
+
+                  my $rewrite = sub {
+                    my ($path) = @_;
+                    $path =~ s{^\s+|\s+$}{}g;
+                    return $path if $is_abs->($path);
+                    my $p = $path;
+                    $p =~ s{^\./}{};
+                    if ($p =~ m{^/}) { $p =~ s{^/}{}; }
+                    else { $p = $dir ? "$dir/$p" : $p; }
+                    $p = $norm->($p);
+                    return "$cdn/$p";
+                  };
+
+                  my $url_pat = qr{url\(\s*(["\x27]?)([^"\x27\)]+\.(?:$exts)(?:[#?][^"\x27\)]*)?)\1\s*\)}i;
+                  s{$url_pat}{
+                    my ($q, $path) = ($1, $2);
+                    my $new = $rewrite->($path);
+                    "url(" . ($q // q{}) . $new . ($q // q{}) . ")";
+                  }eg;
+
+                  my $import_pat = qr{\@import\s+(?:url\()?(["\x27]?)([^"\x27\)]+\.(?:$exts)(?:[#?][^"\x27\)]*)?)\1\)?}i;
+                  s{$import_pat}{
+                    my ($q, $path) = ($1, $2);
+                    my $new = $rewrite->($path);
+                    "\@import " . ($q // q{}) . $new . ($q // q{});
+                  }eg;
+                ' "$f"
+              done
+
+              # JS rewrite
+              find /html -type f -name '*.js' | while read -r f; do
+                rel="${f#/html/}"
+                rel_dir="$(dirname "$rel")"
+                [ "$rel_dir" = "." ] && rel_dir=""
+                JS_DIR="$rel_dir" perl -pi -e '
+                  my $cdn  = $ENV{CDN_URL}  // q{};
+                  my $exts = $ENV{EXT_PATTERN} // q{};
+                  my $dir  = $ENV{JS_DIR}      // q{};
+                  exit 0 unless $cdn && $exts;
+
+                  my $norm = sub {
+                    my ($p) = @_;
+                    my @out;
+                    for my $seg (split m{/+}, $p) {
+                      next if $seg eq q{} || $seg eq q{.};
+                      if ($seg eq q{..}) { pop @out if @out; next; }
+                      push @out, $seg;
+                    }
+                    return join q{/}, @out;
+                  };
+
+                  my $is_abs = sub {
+                    my ($p) = @_;
+                    $p =~ s{^\s+|\s+$}{}g;
+                    return 1 if $p =~ m{://};
+                    return 1 if $cdn ne q{} && index($p, $cdn) == 0;
+                    return $p =~ m{^(?:[a-zA-Z][a-zA-Z0-9+.+-]*:|//|data:)}i;
+                  };
+
+                  my $rewrite = sub {
+                    my ($path) = @_;
+                    $path =~ s{^\s+|\s+$}{}g;
+                    return $path if $is_abs->($path);
+                    my $p = $path;
+                    $p =~ s{^\./}{};
+                    if ($p =~ m{^/}) { $p =~ s{^/}{}; }
+                    else { $p = $dir ? "$dir/$p" : $p; }
+                    $p = $norm->($p);
+                    return "$cdn/$p";
+                  };
+
+                  my $str_pat = qr{(["\x27])([^"\x27]+?\.(?:$exts)(?:[#?][^"\x27]*)?)\1}i;
+                  s{$str_pat}{
+                    my ($q, $path) = ($1, $2);
+                    my $new = $rewrite->($path);
+                    $q . $new . $q;
+                  }eg;
+                ' "$f"
+              done
+
+              echo "CDN rewrite complete."
+          volumeMounts:
+            - name: html
+              mountPath: /html
+      {{- end }}
       containers:
         - name: nginx
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
@@ -58,6 +236,10 @@ spec:
             initialDelaySeconds: {{ .Values.probes.readiness.initialDelaySeconds }}
             periodSeconds: {{ .Values.probes.readiness.periodSeconds }}
           volumeMounts:
+            {{- if .Values.cdn.enabled }}
+            - name: html
+              mountPath: /usr/share/nginx/html
+            {{- end }}
             - name: nginx-conf
               mountPath: /etc/nginx/conf.d
               readOnly: true
@@ -66,6 +248,10 @@ spec:
             {{- toYaml . | nindent 12 }}
           {{- end }}
       volumes:
+        {{- if .Values.cdn.enabled }}
+        - name: html
+          emptyDir: {}
+        {{- end }}
         - name: nginx-conf
           configMap:
             name: {{ include "sugar-suite.fullname" . }}-nginx

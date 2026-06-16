@@ -50,6 +50,14 @@ $(function () {
 
 
     $(".reveal-button").on("click", function () {
+        if (window.otelAnalytics && window.otelAnalytics.trackEvent) {
+            var revealIndex = $(".reveal-button").index(this);
+            var hasActiveInput = $(this).prev("textarea.reveal-textarea").length > 0;
+            window.otelAnalytics.trackEvent('reveal_clicked', {
+                'reveal_index': String(revealIndex),
+                'has_active_input': String(hasActiveInput),
+            });
+        }
         $(this).next().slideToggle("fast").promise().done(function () {
             if ($(this).find(".line-matching").length) {
                 $(window).trigger('resize');

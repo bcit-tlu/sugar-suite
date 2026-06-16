@@ -133,6 +133,7 @@
             // Check for the checkbox parent and children
             var isCheckboxChecked = $(this).prop('checked');
             var $li = $(this).parent("li");
+
             var $parentListInput = $li.parent("ul, ol").siblings("input");
             var hasParentChecklist = $parentListInput.length;
             var $liSiblings = $li.siblings("li");
