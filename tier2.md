@@ -1,12 +1,16 @@
 # Tier 2 — Engagement Depth
 
-Add interaction tracking to each sugar-suite feature module. Depends on Tier 1 (the `window.otelAnalytics.trackEvent()` API must be available).
+Add interaction tracking to select sugar-suite feature modules. Depends on Tier 1 (the `window.otelAnalytics.trackEvent()` API must be available).
 
 ## Goals
 
 - Know which interactive components users actually engage with
-- Understand engagement depth (e.g., how many flashcards flipped, how many quiz answers submitted)
-- Identify unused or underused components
+- Understand engagement depth for assessment components (knowledge checks, line matching)
+- Identify unused or underused content sections (accordions, tabs, reveals)
+
+## Design Decisions
+
+Only low-to-medium frequency events are tracked. High-frequency per-interaction events (every card flip, every slider arrow click, every checkbox toggle) are excluded to avoid noise and unnecessary data volume. Components like flashcards, sliders, checklists, and swappers are already captured by Tier 1's `component_initialized` event which confirms they exist on the page.
 
 ## Approach
 
@@ -27,14 +31,6 @@ This ensures feature modules still work if the analytics script isn't loaded.
 | Event | Attributes | When |
 |-------|-----------|------|
 | `accordion_toggle` | `action` (open/close), `section_title`, `accordion_index` | User opens or closes a section |
-
-### Flashcards (`flashcards.js`)
-
-| Event | Attributes | When |
-|-------|-----------|------|
-| `flashcard_flip` | `card_index`, `total_cards` | User flips a card |
-| `flashcard_shuffle` | `total_cards` | User clicks shuffle |
-| `flashcard_navigate` | `direction` (next/prev), `card_index` | User navigates between cards |
 
 ### Tabs (`tabs.js`)
 
@@ -58,41 +54,35 @@ This ensures feature modules still work if the analytics script isn't loaded.
 | `line_matching_attempt` | `question_index` | User makes a matching attempt |
 | `line_matching_result` | `question_index`, `is_correct` | After matching is evaluated |
 
-### Slider (`slider.js`)
-
-| Event | Attributes | When |
-|-------|-----------|------|
-| `slider_navigate` | `direction` (next/prev), `slide_index`, `total_slides` | User navigates slides |
-| `slider_fullscreen` | `slide_index` | User enters fullscreen |
-
 ### Reveal (`reveal.js`)
 
 | Event | Attributes | When |
 |-------|-----------|------|
 | `reveal_clicked` | `reveal_index`, `has_active_input` | User clicks reveal button |
 
-### Checklist (`checklist.js`)
+## Excluded (too noisy)
 
-| Event | Attributes | When |
-|-------|-----------|------|
-| `checklist_checked` | `item_index`, `checked` (true/false), `total_items`, `completed_items` | User checks/unchecks an item |
+The following were considered but excluded due to high per-interaction volume:
 
-### Swapper (`swapper.js`)
-
-| Event | Attributes | When |
-|-------|-----------|------|
-| `swapper_toggle` | `swapper_index` | User toggles a swapper element |
+| Component | Reason |
+|-----------|--------|
+| Flashcards (`flashcard_flip`, `flashcard_navigate`, `flashcard_shuffle`) | Every card flip/nav generates an event; presence already tracked by Tier 1 |
+| Slider (`slider_navigate`, `slider_fullscreen`) | Every arrow click generates an event |
+| Checklist (`checklist_checked`) | Every checkbox fires; a 15-item list = 15 events per user |
+| Swapper (`swapper_toggle`) | Every page turn fires |
 
 ## Tasks
 
-1. Add guarded `trackEvent` calls at interaction points in each feature module listed above
+1. Add guarded `trackEvent` calls at interaction points in each tracked feature module
 2. Ensure events include enough context to be useful in Loki queries (component type, index, counts)
-3. Verify locally with `ConsoleLogRecordExporter` that events fire correctly
-4. Keep changes minimal — one-line additions at existing event handler locations
+3. Remove tracking from excluded components (flashcards, slider, checklist, swapper)
+4. Verify locally with `ConsoleLogRecordExporter` that events fire correctly
+5. Keep changes minimal — one-line additions at existing event handler locations
 
 ## Verification
 
-- Load a test page with each component type
+- Load a test page with each tracked component type
 - Interact with each component
 - Confirm events appear in browser console (dev mode) with correct attributes
+- Confirm excluded components have no trackEvent calls
 - No regressions in component functionality (existing tests pass)
