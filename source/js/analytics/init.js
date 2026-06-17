@@ -8,6 +8,8 @@ import {
 import { OTLPLogExporter } from '@opentelemetry/exporter-logs-otlp-http';
 import { resourceFromAttributes } from '@opentelemetry/resources';
 import { ATTR_SERVICE_NAME, ATTR_SERVICE_VERSION } from '@opentelemetry/semantic-conventions';
+import { registerInstrumentations } from '@opentelemetry/instrumentation';
+import { ErrorsInstrumentation } from '@opentelemetry/browser-instrumentation/experimental/errors';
 import pkg from '../../../package.json';
 
 var { version } = pkg;
@@ -65,6 +67,10 @@ function init() {
   });
 
   logs.setGlobalLoggerProvider(_loggerProvider);
+
+  registerInstrumentations({
+    instrumentations: [new ErrorsInstrumentation()],
+  });
 
   var sessionId = getSessionId();
   var commonAttributes = {
