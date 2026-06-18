@@ -118,7 +118,7 @@ jobs:
           mkdir -p "${DEST_DIR}"
 
           # Inject short commit SHA for CDN immutable path (matched by upload prefix).
-          SHORT_SHA="${GITHUB_SHA::7}"
+          SHORT_SHA="$(git rev-parse --short HEAD)"
           yq -i ".cdn.commitSha = \"${SHORT_SHA}\"" \
             "${CHART_DIR}/values.yaml"
 
@@ -164,7 +164,7 @@ jobs:
       - run: npm ci
       - run: npm run build
       - id: set-sha
-        run: echo "short_sha=${GITHUB_SHA::7}" >> "$GITHUB_OUTPUT"
+        run: echo "short_sha=$(git rev-parse --short HEAD)" >> "$GITHUB_OUTPUT"
 
       - name: Rewrite asset URLs for CDN upload
         env:
