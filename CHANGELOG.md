@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.3.1](https://github.com/bcit-tlu/sugar-suite/compare/v1.3.0...v1.3.1) (2026-06-18)
+
+
+### Bug Fixes
+
+* inject CDN commit SHA when publishing stable charts ([cfa6d8a](https://github.com/bcit-tlu/sugar-suite/commit/cfa6d8a98ccb1888c5dadbac088483ffd7252ddc))
+
 ## [1.3.0](https://github.com/bcit-tlu/sugar-suite/compare/v1.2.0...v1.3.0) (2026-06-18)
 
 
