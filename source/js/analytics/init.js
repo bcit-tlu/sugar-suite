@@ -1,13 +1,13 @@
 import { logs, SeverityNumber } from '@opentelemetry/api-logs';
 import {
   LoggerProvider,
-  BatchLogRecordProcessor,
   SimpleLogRecordProcessor,
   ConsoleLogRecordExporter,
 } from '@opentelemetry/sdk-logs';
-import { OTLPLogExporter } from '@opentelemetry/exporter-logs-otlp-http';
 import { resourceFromAttributes } from '@opentelemetry/resources';
 import { ATTR_SERVICE_NAME, ATTR_SERVICE_VERSION } from '@opentelemetry/semantic-conventions';
+import { registerInstrumentations } from '@opentelemetry/instrumentation';
+import { ErrorsInstrumentation } from '@opentelemetry/browser-instrumentation/experimental/errors';
 import pkg from '../../../package.json';
 
 var { version } = pkg;
@@ -51,20 +51,23 @@ function init() {
     [ATTR_SERVICE_VERSION]: version,
   });
 
-  var logExporter = prod
-    ? new OTLPLogExporter({ url: '/v1/logs' })
-    : new ConsoleLogRecordExporter();
-
-  var processor = prod
-    ? new BatchLogRecordProcessor(logExporter)
-    : new SimpleLogRecordProcessor(logExporter);
+  // TODO: enable OTLPLogExporter once /v1/logs endpoint is deployed
+  var processors = [];
+  if (!prod) {
+    var logExporter = new ConsoleLogRecordExporter();
+    processors.push(new SimpleLogRecordProcessor(logExporter));
+  }
 
   _loggerProvider = new LoggerProvider({
     resource,
-    processors: [processor],
+    processors,
   });
 
   logs.setGlobalLoggerProvider(_loggerProvider);
+
+  registerInstrumentations({
+    instrumentations: [new ErrorsInstrumentation()],
+  });
 
   var sessionId = getSessionId();
   var commonAttributes = {

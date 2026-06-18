@@ -14,6 +14,7 @@
   },
   "dependencies": {
     "@opentelemetry/api-logs": "^0.218.0",
+    "@opentelemetry/browser-instrumentation": "^0.5.2",
     "@opentelemetry/exporter-logs-otlp-http": "^0.218.0",
     "@opentelemetry/instrumentation": "^0.218.0",
     "@opentelemetry/resources": "^2.7.1",
