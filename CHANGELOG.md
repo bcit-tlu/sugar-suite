@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.3.0](https://github.com/bcit-tlu/sugar-suite/compare/v1.2.0...v1.3.0) (2026-06-18)
+
+
+### Features
+
+* add generic callout containers without icons ([#46](https://github.com/bcit-tlu/sugar-suite/issues/46)) ([66174f1](https://github.com/bcit-tlu/sugar-suite/commit/66174f14f5f754702db1758c2878ce8f37462b74))
+
 ## [1.2.0](https://github.com/bcit-tlu/sugar-suite/compare/v1.1.21...v1.2.0) (2026-06-01)
 
 
