@@ -20,6 +20,23 @@ $icon-large: 3em;
 	}
 }
 
+// Removes the icon, reclaims the space reserved for it, and trims
+// the top padding to offset a leading heading's line-box leading.
+@mixin no-icon {
+	margin-top: $space;
+	padding-top: $pad-and-half;
+
+	&:before {
+		content: none;
+	}
+
+	.container > & {
+		@include inline-media-queries.media("screen", ">650px") {
+			padding-top: $pad-and-half;
+		}
+	}
+}
+
 // Basic styling for displaying icons
 [class$='__icon'] {
 	background-size: contain;

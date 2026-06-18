@@ -45,6 +45,7 @@ $a: $note-link-active-color;
 	}
 }
 
+.callout,
 .example,
 .definition,
 .key-point,
@@ -83,4 +84,8 @@ $a: $note-link-active-color;
 
 .knowing {
 	@include base-container.icon-path($note-knowing-icon);
+}
+
+.callout {
+	@include base-container.no-icon;
 }

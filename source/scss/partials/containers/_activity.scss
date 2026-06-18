@@ -48,6 +48,7 @@ $a: $activity-link-active-color;
 	}
 }
 
+.callout-bordered,
 .activity,
 .case,
 .discussion,
@@ -59,6 +60,10 @@ $a: $activity-link-active-color;
 .doing {
 	@extend %activity;
 	@extend %custom-max-width;
+}
+
+.callout-bordered {
+	@include base-container.no-icon;
 }
 
 .activity {
