@@ -9,6 +9,7 @@
 - Run tests: `npm test`
 - Helm lint: `helm lint charts/`
 - Helm validate: `helm template test charts/ | kubeconform -strict -summary -schema-location default -ignore-missing-schemas`
+- Verify CDN rewrite initContainer: `bash tests/helm-cdn-rewrite.sh`
 - Use `nix-shell -p {binary}` for ad-hoc tools not in PATH.
   - Preferred form: `nix-shell -p {binary} --run "<command>"`
   - Examples:
