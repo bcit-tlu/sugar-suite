@@ -221,10 +221,12 @@ spec:
               done
 
               # Verify the rewrite actually injected the immutable CDN URL.
-              # If no rewritten reference exists, the assets would still point at
-              # relative/hash-less paths, so fail to block a broken rollout.
-              if ! grep -rqF "${CDN_URL}/" /html; then
-                echo "ERROR: rewrite produced no references to ${CDN_URL}/" >&2
+              # If any rewritten file has no CDN reference, the rollout would
+              # still serve relative/hash-less paths, so fail to block it.
+              missing_files=$(find /html -type f \( -name '*.html' -o -name '*.css' -o -name '*.js' \) ! -exec grep -qF "${CDN_URL}/" {} \; -print)
+              if [ -n "${missing_files}" ]; then
+                echo "ERROR: rewrite did not inject ${CDN_URL}/ into the following files:" >&2
+                echo "${missing_files}" >&2
                 exit 1
               fi
 

@@ -39,7 +39,7 @@ check 'name: cdn-rewrite'
 check 'CDN_BASE_URL="https://cdn.example/bcit-ltc"'
 check 'CDN_SHA="abc1234"'
 check 'CDN_URL="${CDN_BASE_URL}/sugar-suite/${CDN_SHA}"'
-check 'rewrite produced no references to'
+check 'rewrite did not inject'
 
 # 3. Enabled but missing commitSha must fail render (required guard).
 if helm template t "${CHART_DIR}" \
