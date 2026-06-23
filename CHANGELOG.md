@@ -1,5 +1,14 @@
 # Changelog
 
+## [1.3.2](https://github.com/bcit-tlu/sugar-suite/compare/v1.3.1...v1.3.2) (2026-06-23)
+
+
+### Bug Fixes
+
+* add runtime verification to CDN rewrite initContainer ([#62](https://github.com/bcit-tlu/sugar-suite/issues/62)) ([bdb8857](https://github.com/bcit-tlu/sugar-suite/commit/bdb88574bf4e2527896bb0939da10eae048bd39e))
+* harden CDN rewrite and upload verification ([#67](https://github.com/bcit-tlu/sugar-suite/issues/67)) ([162a8eb](https://github.com/bcit-tlu/sugar-suite/commit/162a8eb161f1a309f4d2c184f27d45bae23867a4))
+* skip asset-less files in CDN rewrite verification ([94419fa](https://github.com/bcit-tlu/sugar-suite/commit/94419facd9b55d4777f5a970a7b01ea29a4dc194))
+
 ## [1.3.1](https://github.com/bcit-tlu/sugar-suite/compare/v1.3.0...v1.3.1) (2026-06-18)
 
 
