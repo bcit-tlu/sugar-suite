@@ -165,10 +165,15 @@ done
 
 echo "CDN rewrite complete."
 
-# Verify the rewrite actually injected the immutable CDN URL.
-# If any rewritten file has no CDN reference, the upload would contain
-# relative/hash-less paths, so fail to block it.
-missing_files=$(find dist/ -type f \( -name '*.html' -o -name '*.css' -o -name '*.js' \) ! -exec grep -qF "${CDN_URL}/" {} \; -print)
+# Verify the rewrite actually injected the immutable CDN URL into files that
+# contain asset references. Vendor files that reference no assets do not need
+# rewriting, so skip them.
+asset_ref_regex="\.(${EXT_PATTERN})([#?][^\"'\)]*)?([\"'\)]|$)"
+missing_files=$(find dist/ -type f \( -name '*.html' -o -name '*.css' -o -name '*.js' \) | while read -r f; do
+  if grep -qE "${asset_ref_regex}" "$f" && ! grep -qF "${CDN_URL}/" "$f"; then
+    printf '%s\n' "$f"
+  fi
+done)
 if [ -n "${missing_files}" ]; then
   echo "ERROR: rewrite did not inject ${CDN_URL}/ into the following files:" >&2
   echo "${missing_files}" >&2
