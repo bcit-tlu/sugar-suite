@@ -43,6 +43,9 @@ jobs:
                 -schema-location 'https://raw.githubusercontent.com/datreeio/CRDs-catalog/main/{{.Group}}/{{.ResourceKind}}_{{.ResourceAPIVersion}}.json' \
                 -ignore-missing-schemas
 
+      - name: Verify CDN cdn-rewrite initContainer
+        run: bash tests/helm-cdn-rewrite.sh
+
   # Container image build/publish (reusable workflow)
 
   build-sugar-suite:
@@ -171,7 +174,7 @@ jobs:
           CDN_BASE_URL: "https://bcit-ltc-cdn-h3aafscucgd4dvd3.z03.azurefd.net/bcit-ltc"
           REPO_NAME: ${{ github.event.repository.name }}
           SHORT_SHA: ${{ steps.set-sha.outputs.short_sha }}
-          EXT_PATTERN: "css|js|map|jpg|jpeg|png|webp|gif|svg|ico|mp4|woff|woff2|ttf|otf"
+          EXT_PATTERN: "css|js|map|jpg|jpeg|png|webp|gif|svg|ico|mp4|woff|woff2|ttf|otf|eot"
         run: |
           set -euo pipefail
 
@@ -347,6 +350,6 @@ jobs:
       destination_prefix: ${{ vars.CDN_NAMESPACE }}/${{ github.event.repository.name }}/${{ needs.build-assets.outputs.short_sha }}
       cdn_account_name: ${{ vars.CDN_ACCOUNT_NAME }}
       cdn_container: ${{ vars.CDN_CONTAINER }}
-      asset_extensions: "css,js,map,jpg,jpeg,png,webp,gif,svg,ico,mp4,woff,woff2,ttf,otf"
+      asset_extensions: "css,js,map,jpg,jpeg,png,webp,gif,svg,ico,mp4,woff,woff2,ttf,otf,eot"
     secrets:
       CDN_SAS_TOKEN: ${{ secrets.CDN_SAS_TOKEN }}

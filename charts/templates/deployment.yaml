@@ -48,8 +48,18 @@ spec:
               echo "Copying original assets to shared volume..."
               cp -a /usr/share/nginx/html/. /html/
 
-              CDN_URL="{{ .Values.cdn.baseUrl }}/{{ .Chart.Name }}/{{ .Values.cdn.commitSha }}"
+              CDN_BASE_URL="{{ required "cdn.baseUrl is required when cdn.enabled is true" .Values.cdn.baseUrl }}"
+              CDN_SHA="{{ required "cdn.commitSha is required when cdn.enabled is true (injected by CI at chart package time)" .Values.cdn.commitSha }}"
+              CDN_URL="${CDN_BASE_URL}/{{ .Chart.Name }}/${CDN_SHA}"
               EXT_PATTERN="{{ join "|" .Values.cdn.assetExtensions }}"
+
+              # Guard: refuse to proceed without an immutable CDN URL (base + sha).
+              # Failing here aborts the initContainer so the rollout never serves
+              # assets pointing at a hash-less CDN path.
+              if [ -z "${CDN_BASE_URL}" ] || [ -z "${CDN_SHA}" ]; then
+                echo "ERROR: cdn.baseUrl and cdn.commitSha must both be set." >&2
+                exit 1
+              fi
 
               if [ -z "${EXT_PATTERN}" ]; then
                 echo "No assetExtensions configured; skipping rewrite."
@@ -209,6 +219,14 @@ spec:
                   }eg;
                 ' "$f"
               done
+
+              # Verify the rewrite actually injected the immutable CDN URL.
+              # If no rewritten reference exists, the assets would still point at
+              # relative/hash-less paths, so fail to block a broken rollout.
+              if ! grep -rqF "${CDN_URL}/" /html; then
+                echo "ERROR: rewrite produced no references to ${CDN_URL}/" >&2
+                exit 1
+              fi
 
               echo "CDN rewrite complete."
           volumeMounts:
