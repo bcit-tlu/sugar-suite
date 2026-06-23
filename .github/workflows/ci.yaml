@@ -157,6 +157,7 @@ jobs:
       contents: read
     outputs:
       short_sha: ${{ steps.set-sha.outputs.short_sha }}
+      asset_extensions: ${{ steps.set-extensions.outputs.asset_extensions }}
     steps:
       - uses: actions/checkout@v6
       - uses: actions/setup-node@v4
@@ -166,6 +167,8 @@ jobs:
       - run: npm run build
       - id: set-sha
         run: echo "short_sha=$(git rev-parse --short HEAD)" >> "$GITHUB_OUTPUT"
+      - id: set-extensions
+        run: echo "asset_extensions=${ASSET_EXTENSIONS}" >> "$GITHUB_OUTPUT"
 
       - name: Rewrite asset URLs for CDN upload
         env:
@@ -192,6 +195,6 @@ jobs:
       destination_prefix: ${{ vars.CDN_NAMESPACE }}/${{ github.event.repository.name }}/${{ needs.build-assets.outputs.short_sha }}
       cdn_account_name: ${{ vars.CDN_ACCOUNT_NAME }}
       cdn_container: ${{ vars.CDN_CONTAINER }}
-      asset_extensions: ${{ env.ASSET_EXTENSIONS }}
+      asset_extensions: ${{ needs.build-assets.outputs.asset_extensions }}
     secrets:
       CDN_SAS_TOKEN: ${{ secrets.CDN_SAS_TOKEN }}
