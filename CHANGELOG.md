@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.3.3](https://github.com/bcit-tlu/sugar-suite/compare/v1.3.2...v1.3.3) (2026-07-01)
+
+
+### Bug Fixes
+
+* **ci:** drop setup-buildx-action from release-retag job ([#72](https://github.com/bcit-tlu/sugar-suite/issues/72)) ([cc5e616](https://github.com/bcit-tlu/sugar-suite/commit/cc5e61670690fa9f3e16b2d6eba44c3b03112dfa))
+
 ## [1.3.2](https://github.com/bcit-tlu/sugar-suite/compare/v1.3.1...v1.3.2) (2026-06-23)
 
 
