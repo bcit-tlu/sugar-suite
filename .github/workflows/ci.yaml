@@ -82,7 +82,7 @@ jobs:
 
       - uses: azure/setup-helm@v5
 
-      - uses: sigstore/cosign-installer@v4.1.0
+      - uses: sigstore/cosign-installer@v4
 
       - name: Cosign login (OCI)
         env:
