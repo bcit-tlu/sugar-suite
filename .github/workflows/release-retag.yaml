@@ -34,7 +34,7 @@ jobs:
             echo "match=false" >> "$GITHUB_OUTPUT"
           fi
 
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
         if: steps.parse.outputs.match == 'true'
         with:
           ref: ${{ inputs.tag_name || github.event.release.tag_name }}
@@ -128,7 +128,7 @@ jobs:
           echo "image=${IMAGE}" >> "$GITHUB_OUTPUT"
 
       # Sign with Cosign
-      - uses: sigstore/cosign-installer@v3
+      - uses: sigstore/cosign-installer@v4.1.0
         if: steps.parse.outputs.match == 'true'
 
       - name: Sign release image
