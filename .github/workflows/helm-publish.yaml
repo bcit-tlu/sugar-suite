@@ -36,7 +36,7 @@ jobs:
             echo "publish=false" >> "$GITHUB_OUTPUT"
           fi
 
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
         if: steps.parse.outputs.publish == 'true'
         with:
           ref: ${{ steps.parse.outputs.tag }}
@@ -44,7 +44,7 @@ jobs:
       - uses: azure/setup-helm@v5
         if: steps.parse.outputs.publish == 'true'
 
-      - uses: sigstore/cosign-installer@v3
+      - uses: sigstore/cosign-installer@v4.1.2
         if: steps.parse.outputs.publish == 'true'
 
       - name: Cosign login (OCI)

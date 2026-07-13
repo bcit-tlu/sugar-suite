@@ -25,7 +25,7 @@ jobs:
   helm-lint:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
 
       - uses: azure/setup-helm@v5
 
@@ -78,11 +78,11 @@ jobs:
     env:
       REGISTRY: ghcr.io
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
 
       - uses: azure/setup-helm@v5
 
-      - uses: sigstore/cosign-installer@v3
+      - uses: sigstore/cosign-installer@v4.1.2
 
       - name: Cosign login (OCI)
         env:
@@ -158,8 +158,8 @@ jobs:
       short_sha: ${{ steps.set-sha.outputs.short_sha }}
       asset_extensions: ${{ steps.set-extensions.outputs.asset_extensions }}
     steps:
-      - uses: actions/checkout@v6
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v6
         with:
           node-version: "24"
       - run: npm ci
@@ -178,7 +178,7 @@ jobs:
           ASSET_EXTENSIONS: ${{ env.ASSET_EXTENSIONS }}
         run: bash .github/scripts/cdn-rewrite-dist.sh
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: dist
           path: dist/
