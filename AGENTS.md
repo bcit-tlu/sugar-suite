@@ -47,7 +47,7 @@
 
 ### Workflow map
 
-- `ci.yaml` — push/PR to `main`: shared `helm-lint.yaml`, reusable OCI build, RC Helm chart publish from `main` via shared `helm-publish.yaml`
+- `ci-cd.yaml` — push/PR to `main`: shared `helm-lint.yaml`, reusable OCI build, RC Helm chart publish from `main` via shared `helm-publish.yaml`
 - `pr-title-lint.yaml` — thin caller of shared `bcit-tlu/.github` `pr-title-lint.yaml`; enforces Conventional Commit PR titles
 - `release-please.yaml` — thin caller of shared `bcit-tlu/.github` `release-please.yaml`; runs release-please on `main`, guards stale `release-as` pins, dispatches `helm-publish.yaml`/`release-retag.yaml`
 - `helm-publish.yaml` — thin caller of shared `bcit-tlu/.github` `helm-publish.yaml`; publishes signed Helm chart for release tags (`vX.Y.Z`) or manual dispatch

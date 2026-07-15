@@ -1,4 +1,4 @@
-name: "[CI] Lint, build & publish"
+name: "[CI/CD] Lint, build & publish"
 
 # PR runs show PR title; main runs show head commit subject.
 run-name: >-
