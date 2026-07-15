@@ -20,34 +20,18 @@ permissions:
   contents: read
 
 jobs:
-  # Chart quality gate
-
+  # Chart quality gate: lint, render, and (optionally) schema-validate the Helm
+  # chart using the shared reusable workflow.
   helm-lint:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v7
+    uses: bcit-tlu/.github/.github/workflows/helm-lint.yaml@main
+    permissions:
+      contents: read
+    with:
+      chart_glob: "charts/"
+      extra_command: bash tests/helm-cdn-rewrite.sh
 
-      - uses: azure/setup-helm@v5
-
-      - name: Install kubeconform
-        run: |
-          curl -sSL https://github.com/yannh/kubeconform/releases/download/v0.6.7/kubeconform-linux-amd64.tar.gz \
-            | sudo tar xz -C /usr/local/bin kubeconform
-
-      - name: Lint, template-render & validate chart
-        run: |
-          helm lint charts/
-          helm template test charts/ \
-            | kubeconform -strict -summary \
-                -schema-location default \
-                -schema-location 'https://raw.githubusercontent.com/datreeio/CRDs-catalog/main/{{.Group}}/{{.ResourceKind}}_{{.ResourceAPIVersion}}.json' \
-                -ignore-missing-schemas
-
-      - name: Verify CDN cdn-rewrite initContainer
-        run: bash tests/helm-cdn-rewrite.sh
-
-  # Container image build/publish (reusable workflow)
-
+  # Build, sign, scan, and publish the OCI image using the shared reusable
+  # workflow. This also outputs an RC version for the chart publish step.
   build-sugar-suite:
     uses: bcit-tlu/.github/.github/workflows/oci-build.yaml@main
     permissions:
@@ -63,92 +47,29 @@ jobs:
       tag_prefix: "v"
     secrets: inherit
 
-  # Publish chart from main pushes using the image RC version.
-
+  # Package and push the Helm chart for the matching RC image. Runs on main
+  # pushes only; the version comes from the oci-build reusable workflow.
   helm-publish:
     needs: [helm-lint, build-sugar-suite, cdn-upload]
     if: >-
       github.event_name != 'pull_request'
       && needs.build-sugar-suite.outputs.rc_version != ''
-    runs-on: ubuntu-latest
+    uses: bcit-tlu/.github/.github/workflows/helm-publish.yaml@main
     permissions:
       contents: read
       packages: write
       id-token: write
-    env:
-      REGISTRY: ghcr.io
-    steps:
-      - uses: actions/checkout@v7
-
-      - uses: azure/setup-helm@v5
-
-      - uses: sigstore/cosign-installer@v4.1.2
-
-      - name: Cosign login (OCI)
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          REGISTRY: ${{ env.REGISTRY }}
-          ACTOR: ${{ github.actor }}
-        run: |
-          echo "${GITHUB_TOKEN}" | \
-            cosign login "${REGISTRY}" \
-            -u "${ACTOR}" \
-            --password-stdin
-
-      - name: Helm login (OCI)
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          REGISTRY: ${{ env.REGISTRY }}
-          ACTOR: ${{ github.actor }}
-        run: |
-          echo "${GITHUB_TOKEN}" | \
-            helm registry login "${REGISTRY}" \
-            -u "${ACTOR}" \
-            --password-stdin
-
-      - name: Package, push & sign chart
-        shell: bash
-        env:
-          VERSION: ${{ needs.build-sugar-suite.outputs.rc_version }}
-          OCI_BASE: oci://${{ env.REGISTRY }}/${{ github.repository }}/charts
-          IMAGE_BASE: ${{ env.REGISTRY }}/${{ github.repository }}/charts
-        run: |
-          set -euo pipefail
-
-          CHART_DIR="charts"
-          CHART_NAME=$(yq '.name' "${CHART_DIR}/Chart.yaml")
-          DEST_DIR="/tmp/charts"
-          mkdir -p "${DEST_DIR}"
-
-          # Inject short commit SHA for CDN immutable path (matched by upload prefix).
-          SHORT_SHA="$(git rev-parse --short HEAD)"
-          yq -i ".cdn.commitSha = \"${SHORT_SHA}\"" \
-            "${CHART_DIR}/values.yaml"
-
-          helm package "${CHART_DIR}" \
-            --version "${VERSION}" \
-            --app-version "${VERSION}" \
-            -d "${DEST_DIR}"
-
-          PUSH_OUT=$(helm push \
-            "${DEST_DIR}/${CHART_NAME}-${VERSION}.tgz" \
-            "${OCI_BASE}" 2>&1) || { echo "${PUSH_OUT}"; exit 1; }
-          echo "${PUSH_OUT}"
-
-          # Tolerant digest parse: case-insensitive, allows leading whitespace.
-          DIGEST=$(printf '%s\n' "${PUSH_OUT}" \
-            | awk 'tolower($1)=="digest:"{print $2; exit}')
-          if [[ -z "${DIGEST}" ]]; then
-            echo "::error::helm push for ${CHART_NAME} succeeded but no digest found in output (helm output format may have changed)"
-            exit 1
-          fi
-
-          cosign sign --yes "${IMAGE_BASE}/${CHART_NAME}@${DIGEST}"
+    with:
+      chart_dir: charts
+      version: ${{ needs.build-sugar-suite.outputs.rc_version }}
+      inject_cdn_sha: true
+    secrets: inherit
 
   # Upload static assets to Azure CDN blob storage.
   # Only on main; reuses the bcit-ltc/.github reusable workflow.
 
-  # Build static assets locally for CDN upload (Docker build is separate).
+  # Build the static site locally and rewrite asset URLs for the CDN upload.
+  # The Docker build happens separately in the build-sugar-suite job.
   build-assets:
     if: github.event_name != 'pull_request'
     runs-on: ubuntu-latest
@@ -183,6 +104,7 @@ jobs:
           name: dist
           path: dist/
 
+  # Upload the rewritten dist/ artifacts to Azure CDN under the short-SHA prefix.
   cdn-upload:
     needs: build-assets
     uses: bcit-tlu/.github/.github/workflows/cdn-upload.yaml@main
