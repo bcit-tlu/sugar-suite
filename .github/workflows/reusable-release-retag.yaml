@@ -163,7 +163,7 @@ jobs:
           echo "image=${IMAGE}" >> "$GITHUB_OUTPUT"
 
       # Sign with Cosign
-      - uses: sigstore/cosign-installer@v4
+      - uses: sigstore/cosign-installer@v4.1.2
         if: steps.parse.outputs.match == 'true'
 
       # Keyless-sign the promoted image digest.

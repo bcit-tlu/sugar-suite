@@ -226,7 +226,7 @@ jobs:
             ${{ env.REGISTRY }}/${{ github.repository }}/${{ inputs.image_name }}:${{ steps.version.outputs.next }}-rc.${{ steps.version.outputs.ts }}.${{ steps.version.outputs.short }}
 
       # ── Sign with Cosign (keyless / Sigstore) ────────────────
-      - uses: sigstore/cosign-installer@v4
+      - uses: sigstore/cosign-installer@v4.1.2
         if: steps.changes.outputs.changed == 'true' && github.event_name != 'pull_request'
 
       - name: Sign image
