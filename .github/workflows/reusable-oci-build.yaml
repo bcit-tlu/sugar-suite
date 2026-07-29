@@ -1,0 +1,291 @@
+# Reusable workflow: build, sign, and scan an OCI container image.
+#
+# Designed for monorepo components that follow the BCIT-TLU image-tag
+# contract (sha-<commit> + semver-rc.<ts>.g<short>).  Single-component
+# repos work too — set `tag_prefix: "v"` to match plain `v*` tags.
+
+name: "reusable: OCI image build (workflow_call only)"
+
+on:
+  workflow_call:
+    inputs:
+      component:
+        description: "Component name (GHA cache scope, SARIF category, default tag prefix)."
+        required: true
+        type: string
+      context:
+        description: "Docker build context path."
+        required: true
+        type: string
+      image_name:
+        description: "Image name under the repository namespace (e.g. hriv-frontend)."
+        required: true
+        type: string
+      target:
+        description: "Dockerfile target stage (omit to use the default stage)."
+        type: string
+        default: ""
+      build_contexts:
+        description: "Additional build contexts (newline-separated key=value)."
+        type: string
+        default: ""
+      extra_watch_paths:
+        description: "Paths to watch for changes beyond the build context."
+        type: string
+        default: ""
+      tag_prefix:
+        description: "Git tag prefix for version lookup.  Default: '{component}-v' (monorepo).  Pass 'v' for single-component repos."
+        type: string
+        default: ""
+      trivyignore:
+        description: "Path to a .trivyignore file (relative to repo root)."
+        type: string
+        default: ""
+      build_args:
+        description: |
+          Additional Docker build-args (newline-separated KEY=VALUE).
+
+          Intentionally NOT auto-populated with APP_VERSION / VITE_APP_VERSION:
+          `release-retag.yaml` promotes a release by re-aliasing the rc
+          image's digest as `vX.Y.Z` / `latest` without rebuilding, so a
+          build-time-baked version would survive into production images
+          and display the original `-rc.<short>` string forever. Surface
+          the version at deploy time via the Helm chart's APP_VERSION env
+          var instead (see `hriv` for the canonical pattern). The
+          `rc_version` output is still exposed on this workflow for
+          callers that need it for non-display purposes (chart packaging,
+          labels, etc.).
+        type: string
+        default: ""
+    outputs:
+      rc_version:
+        description: "Full RC version string (e.g. 1.2.3-rc.20260414194220.gb286051). Empty when no changes detected."
+        value: ${{ jobs.build.outputs.rc_version }}
+      changed:
+        description: "Whether changes were detected in the component's build context."
+        value: ${{ jobs.build.outputs.changed }}
+
+env:
+  REGISTRY: ghcr.io
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    outputs:
+      rc_version: ${{ steps.version.outputs.rc_version }}
+      changed: ${{ steps.changes.outputs.changed }}
+
+    # Minimum permissions the workflow needs.  The *caller* must grant
+    # at least these on the calling job for them to take effect.
+    permissions:
+      contents: read
+      packages: write
+      id-token: write            # Cosign keyless (Sigstore OIDC)
+      security-events: write     # Trivy SARIF upload
+      actions: read              # Required by codeql-action/upload-sarif on private repos
+
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      # ── Change detection ─────────────────────────────────────
+      - name: Detect changes
+        id: changes
+        shell: bash
+        env:
+          INPUT_CONTEXT: ${{ inputs.context }}
+          INPUT_EXTRA_WATCH: ${{ inputs.extra_watch_paths }}
+        run: |
+          set -euo pipefail
+
+          if [[ "${{ github.event_name }}" == "pull_request" ]]; then
+            BASE="${{ github.event.pull_request.base.sha }}"
+            HEAD="${{ github.event.pull_request.head.sha }}"
+          else
+            BASE="${{ github.event.before }}"
+            HEAD="${{ github.sha }}"
+          fi
+
+          # Fall back to HEAD~1 when the base SHA is missing (first
+          # push to a new ref, force-push, etc.).  If HEAD has no
+          # parent (initial commit) treat everything as changed.
+          ZERO_SHA="0000000000000000000000000000000000000000"
+          if [[ -z "${BASE}" || "${BASE}" == "${ZERO_SHA}" ]] \
+             || ! git cat-file -e "${BASE}^{commit}" 2>/dev/null; then
+            if git rev-parse --verify "${HEAD}^" >/dev/null 2>&1; then
+              BASE="${HEAD}^"
+            else
+              echo "changed=true" >> "$GITHUB_OUTPUT"
+              exit 0
+            fi
+          fi
+
+          if git diff --quiet "${BASE}" "${HEAD}" -- ${INPUT_CONTEXT} ${INPUT_EXTRA_WATCH}; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      # ── Docker build & push ──────────────────────────────────
+      - uses: docker/setup-buildx-action@v4
+        if: steps.changes.outputs.changed == 'true'
+
+      - uses: docker/login-action@v4
+        if: steps.changes.outputs.changed == 'true' && github.event_name != 'pull_request'
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Compute next version
+        id: version
+        if: steps.changes.outputs.changed == 'true'
+        shell: bash
+        env:
+          INPUT_TAG_PREFIX: ${{ inputs.tag_prefix }}
+          INPUT_COMPONENT: ${{ inputs.component }}
+          INPUT_CONTEXT: ${{ inputs.context }}
+        run: |
+          set -euo pipefail
+
+          PREFIX="${INPUT_TAG_PREFIX}"
+          if [[ -z "$PREFIX" ]]; then
+            PREFIX="${INPUT_COMPONENT}-v"
+          fi
+
+          TAG=$(git describe --tags \
+            --match "${PREFIX}*" \
+            --exclude "${PREFIX}*-*" \
+            --abbrev=0 2>/dev/null || true)
+          if [[ -z "$TAG" ]]; then
+            VERSION="0.0.0"
+            RANGE="HEAD"
+          else
+            VERSION="${TAG#${PREFIX}}"
+            RANGE="${TAG}..HEAD"
+          fi
+
+          if ! [[ "$VERSION" =~ ^([0-9]+)\.([0-9]+)\.([0-9]+)$ ]]; then
+            echo "::error::Refusing to bump from non-semver base version '${VERSION}' (tag '${TAG}')"
+            exit 1
+          fi
+          MAJOR="${BASH_REMATCH[1]}"
+          MINOR="${BASH_REMATCH[2]}"
+          PATCH="${BASH_REMATCH[3]}"
+
+          SUBJECTS=$(git log "${RANGE}" --pretty=format:"%s" -- ${INPUT_CONTEXT})
+          BODIES=$(git log "${RANGE}" --pretty=format:"%b" -- ${INPUT_CONTEXT})
+
+          if echo "$SUBJECTS" | grep -qE "^[a-zA-Z]+(\([^)]+\))?!:" \
+             || echo "$BODIES" | grep -qE "^BREAKING[ -]CHANGE:"; then
+            ((MAJOR+=1)); MINOR=0; PATCH=0
+          elif echo "$SUBJECTS" | grep -qE "^feat(\(.+\))?:"; then
+            ((MINOR+=1)); PATCH=0
+          else
+            ((PATCH+=1))
+          fi
+
+          NEXT="${MAJOR}.${MINOR}.${PATCH}"
+          # Prefix with 'g' (git convention) so the segment is always an
+          # alphanumeric SemVer identifier.  Without the prefix, an
+          # all-numeric hash starting with 0 (e.g. 0702969) is treated as
+          # a numeric identifier with a leading zero, which violates
+          # SemVer 2.0.0 §9 and causes `helm package` to reject the
+          # version string.
+          SHORT_SHA="g$(git rev-parse --short HEAD)"
+          # Numerical timestamp suffix for Flux ImagePolicy sorting.
+          TS=$(date -u +"%Y%m%d%H%M%S")
+
+          echo "next=${NEXT}" >> "$GITHUB_OUTPUT"
+          echo "short=${SHORT_SHA}" >> "$GITHUB_OUTPUT"
+          echo "ts=${TS}" >> "$GITHUB_OUTPUT"
+          echo "rc_version=${NEXT}-rc.${TS}.${SHORT_SHA}" >> "$GITHUB_OUTPUT"
+
+      - name: Build and push
+        id: build-push
+        if: steps.changes.outputs.changed == 'true'
+        uses: docker/build-push-action@v7
+        with:
+          context: ${{ inputs.context }}
+          target: ${{ inputs.target || '' }}
+          build-contexts: ${{ inputs.build_contexts || '' }}
+          build-args: ${{ inputs.build_args || '' }}
+          push: ${{ github.event_name != 'pull_request' }}
+          load: ${{ github.event_name == 'pull_request' }}
+          provenance: false
+          sbom: false
+          cache-from: type=gha,scope=${{ inputs.component }}
+          cache-to: type=gha,mode=max,scope=${{ inputs.component }}
+          labels: |
+            org.opencontainers.image.source=https://github.com/${{ github.repository }}
+            org.opencontainers.image.revision=${{ github.sha }}
+            org.opencontainers.image.version=${{ steps.version.outputs.next }}-rc.${{ steps.version.outputs.ts }}.${{ steps.version.outputs.short }}
+          tags: |
+            ${{ env.REGISTRY }}/${{ github.repository }}/${{ inputs.image_name }}:sha-${{ github.sha }}
+            ${{ env.REGISTRY }}/${{ github.repository }}/${{ inputs.image_name }}:${{ steps.version.outputs.next }}-rc.${{ steps.version.outputs.ts }}.${{ steps.version.outputs.short }}
+
+      # ── Sign with Cosign (keyless / Sigstore) ────────────────
+      - uses: sigstore/cosign-installer@v4
+        if: steps.changes.outputs.changed == 'true' && github.event_name != 'pull_request'
+
+      - name: Sign image
+        if: steps.changes.outputs.changed == 'true' && github.event_name != 'pull_request'
+        env:
+          IMAGE: ${{ env.REGISTRY }}/${{ github.repository }}/${{ inputs.image_name }}
+          DIGEST: ${{ steps.build-push.outputs.digest }}
+        run: |
+          cosign sign --yes "${IMAGE}@${DIGEST}"
+
+      # ── Trivy vulnerability scan ─────────────────────────────
+      #
+      # Runs on every build so regressions surface on the PR that
+      # introduces them rather than after merge to main.
+      #
+      #   * main pushes: scan by digest, upload SARIF to Security tab.
+      #   * PRs: scan by tag; `ignore-unfixed` trims noise to
+      #     actionable CVEs.  Advisory today (exit-code 0).
+      - name: Resolve image reference for Trivy
+        id: scan-ref
+        if: steps.changes.outputs.changed == 'true'
+        shell: bash
+        env:
+          IMAGE: ${{ env.REGISTRY }}/${{ github.repository }}/${{ inputs.image_name }}
+          DIGEST: ${{ steps.build-push.outputs.digest }}
+        run: |
+          if [[ "${{ github.event_name }}" == "pull_request" ]]; then
+            echo "ref=${IMAGE}:sha-${{ github.sha }}" >> "$GITHUB_OUTPUT"
+          else
+            echo "ref=${IMAGE}@${DIGEST}" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Scan image (PR)
+        if: steps.changes.outputs.changed == 'true' && github.event_name == 'pull_request'
+        uses: aquasecurity/trivy-action@v0.36.0
+        with:
+          image-ref: ${{ steps.scan-ref.outputs.ref }}
+          format: table
+          severity: CRITICAL,HIGH
+          ignore-unfixed: true
+          trivyignores: ${{ inputs.trivyignore }}
+          exit-code: "0"
+
+      - name: Scan image (main — SARIF)
+        if: steps.changes.outputs.changed == 'true' && github.event_name != 'pull_request'
+        uses: aquasecurity/trivy-action@v0.36.0
+        with:
+          image-ref: ${{ steps.scan-ref.outputs.ref }}
+          format: sarif
+          output: trivy-${{ inputs.component }}.sarif
+          severity: CRITICAL,HIGH
+          ignore-unfixed: false
+          trivyignores: ${{ inputs.trivyignore }}
+          exit-code: "0"
+
+      - name: Upload scan results to GitHub Security
+        if: steps.changes.outputs.changed == 'true' && github.event_name != 'pull_request'
+        uses: github/codeql-action/upload-sarif@v4
+        continue-on-error: true  # Graceful fallback when Code Security is not enabled (private repos)
+        with:
+          sarif_file: trivy-${{ inputs.component }}.sarif
+          category: trivy-${{ inputs.component }}

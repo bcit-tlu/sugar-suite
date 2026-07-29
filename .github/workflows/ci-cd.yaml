@@ -21,19 +21,19 @@ permissions:
 
 jobs:
   # Chart quality gate: lint, render, and (optionally) schema-validate the Helm
-  # chart using the shared reusable workflow.
+  # chart using the local reusable workflow (testing ground for bcit-tlu/.github).
   helm-lint:
-    uses: bcit-tlu/.github/.github/workflows/helm-lint.yaml@main
+    uses: ./.github/workflows/reusable-helm-lint.yaml
     permissions:
       contents: read
     with:
       chart_glob: "charts/"
       extra_command: bash tests/helm-cdn-rewrite.sh
 
-  # Build, sign, scan, and publish the OCI image using the shared reusable
+  # Build, sign, scan, and publish the OCI image using the local reusable
   # workflow. This also outputs an RC version for the chart publish step.
   build-sugar-suite:
-    uses: bcit-tlu/.github/.github/workflows/oci-build.yaml@main
+    uses: ./.github/workflows/reusable-oci-build.yaml
     permissions:
       contents: read
       packages: write
@@ -54,7 +54,7 @@ jobs:
     if: >-
       github.event_name != 'pull_request'
       && needs.build-sugar-suite.outputs.rc_version != ''
-    uses: bcit-tlu/.github/.github/workflows/helm-publish.yaml@main
+    uses: ./.github/workflows/reusable-helm-publish.yaml
     permissions:
       contents: read
       packages: write
@@ -66,7 +66,7 @@ jobs:
     secrets: inherit
 
   # Upload static assets to Azure CDN blob storage.
-  # Only on main; reuses the bcit-ltc/.github reusable workflow.
+  # Only on main; uses the local reusable workflow.
 
   # Build the static site locally and rewrite asset URLs for the CDN upload.
   # The Docker build happens separately in the build-sugar-suite job.
@@ -107,7 +107,7 @@ jobs:
   # Upload the rewritten dist/ artifacts to Azure CDN under the short-SHA prefix.
   cdn-upload:
     needs: build-assets
-    uses: bcit-tlu/.github/.github/workflows/cdn-upload.yaml@main
+    uses: ./.github/workflows/reusable-cdn-upload.yaml
     permissions:
       contents: read
     with:

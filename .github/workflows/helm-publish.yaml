@@ -20,7 +20,7 @@ jobs:
   # workflow parses the tag, checks out the matching ref, and injects the
   # short commit SHA into values.yaml for CDN immutable paths.
   publish:
-    uses: bcit-tlu/.github/.github/workflows/helm-publish.yaml@main
+    uses: ./.github/workflows/reusable-helm-publish.yaml
     permissions:
       contents: read
       packages: write

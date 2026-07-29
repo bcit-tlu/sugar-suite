@@ -15,7 +15,7 @@ jobs:
   # Validate that the PR title follows Conventional Commits. The shared
   # workflow posts/clears a sticky comment explaining any failure.
   lint:
-    uses: bcit-tlu/.github/.github/workflows/pr-title-lint.yaml@main
+    uses: ./.github/workflows/reusable-pr-title-lint.yaml
     permissions:
       contents: read
       pull-requests: write

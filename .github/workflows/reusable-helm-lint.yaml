@@ -1,0 +1,102 @@
+# Reusable workflow: lint and (optionally) kubeconform-validate Helm charts.
+#
+# Language-agnostic — works for single-chart repos (chart_glob: "charts/")
+# and monorepos with several charts (chart_glob: "charts/*/").
+
+name: "reusable: Helm lint (workflow_call only)"
+
+on:
+  workflow_call:
+    inputs:
+      chart_glob:
+        description: "Space/glob-expandable list of chart directories to lint (e.g. 'charts/' or 'charts/*/')."
+        required: false
+        type: string
+        default: "charts/"
+      kubeconform_version:
+        description: "kubeconform release to install."
+        required: false
+        type: string
+        default: v0.6.7
+      validate_continue_on_error:
+        description: "Treat kubeconform validation failures as non-fatal (schema downloads can be flaky). Strict `helm lint` stays the hard gate."
+        required: false
+        type: boolean
+        default: false
+      extra_command:
+        description: "Optional shell command run after validation (e.g. a repo-specific chart test script)."
+        required: false
+        type: string
+        default: ""
+
+permissions:
+  contents: read
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      # Bring the chart sources into the runner.
+      - uses: actions/checkout@v7
+
+      # `helm` is used both to lint and to render charts for kubeconform.
+      - uses: azure/setup-helm@v5
+
+      # kubeconform renders + schema-validates the templated manifests.
+      - name: Install kubeconform
+        env:
+          KUBECONFORM_VERSION: ${{ inputs.kubeconform_version }}
+        run: |
+          curl -sSL "https://github.com/yannh/kubeconform/releases/download/${KUBECONFORM_VERSION}/kubeconform-linux-amd64.tar.gz" \
+            | sudo tar xz -C /usr/local/bin kubeconform
+
+      # Cache the downloaded JSON schemas so repeated runs don't re-fetch them
+      # (keyed on the kubeconform version + Chart.yaml set).
+      - name: Cache kubeconform schemas
+        uses: actions/cache@v5
+        with:
+          path: /tmp/kubeconform-cache
+          key: kubeconform-schemas-${{ inputs.kubeconform_version }}-${{ hashFiles('charts/**/Chart.yaml') }}
+          restore-keys: |
+            kubeconform-schemas-${{ inputs.kubeconform_version }}-
+
+      # Hard gate: `helm lint` each chart in the glob. Any failure fails CI.
+      - name: Lint charts (strict gate)
+        env:
+          CHART_GLOB: ${{ inputs.chart_glob }}
+        run: |
+          set -euo pipefail
+          for chart in ${CHART_GLOB}; do
+            echo "::group::helm lint ${chart}"
+            helm lint "${chart}"
+            echo "::endgroup::"
+          done
+
+      # kubeconform schema downloads from raw.githubusercontent.com can be flaky
+      # on shared runners. Callers that want the strict `helm lint` above to be
+      # the primary gate can set validate_continue_on_error to absorb transient
+      # download failures here.
+      - name: Validate rendered charts with kubeconform
+        continue-on-error: ${{ inputs.validate_continue_on_error }}
+        env:
+          CHART_GLOB: ${{ inputs.chart_glob }}
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/kubeconform-cache
+          for chart in ${CHART_GLOB}; do
+            echo "::group::kubeconform ${chart}"
+            helm template test "${chart}" \
+              | kubeconform -cache /tmp/kubeconform-cache -strict -summary \
+                  -schema-location default \
+                  -schema-location 'https://raw.githubusercontent.com/datreeio/CRDs-catalog/main/{{.Group}}/{{.ResourceKind}}_{{.ResourceAPIVersion}}.json' \
+                  -ignore-missing-schemas
+            echo "::endgroup::"
+          done
+
+      # Optional repo-specific check (e.g. a chart regression/CDN-rewrite
+      # script) run only when the caller supplies `extra_command`.
+      - name: Run extra command
+        if: inputs.extra_command != ''
+        run: ${{ inputs.extra_command }}

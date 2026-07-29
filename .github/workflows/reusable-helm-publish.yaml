@@ -1,0 +1,185 @@
+# Reusable workflow: package, push, and cosign-sign a Helm chart to an OCI
+# registry.
+#
+# Two version modes:
+#   * RC publish (from ci.yaml): pass `version` directly (e.g. the
+#     oci-build rc_version). Empty `version` = nothing to publish → skip.
+#   * Release publish (from a `release: published` workflow): pass
+#     `tag_name` + `tag_prefix`; the tag is parsed to a semver `version`.
+#     A tag that doesn't match the prefix is skipped (useful for monorepo
+#     matrices where only one component's tag matches).
+
+name: "reusable: Helm publish (workflow_call only)"
+
+on:
+  workflow_call:
+    inputs:
+      chart_dir:
+        description: "Path to the chart directory (e.g. 'charts' or 'charts/frontend')."
+        required: true
+        type: string
+      version:
+        description: "Explicit chart/app version to publish. When set, tag_name/tag_prefix are ignored."
+        required: false
+        type: string
+        default: ""
+      tag_name:
+        description: "Release tag to parse when `version` is empty (e.g. v1.2.3 or backend-v1.2.3)."
+        required: false
+        type: string
+        default: ""
+      tag_prefix:
+        description: "Prefix preceding the semver in tag_name (e.g. 'v' or 'backend-v'). A tag not matching is skipped."
+        required: false
+        type: string
+        default: v
+      ref:
+        description: "Git ref to checkout (defaults to the triggering commit). Set to the release tag for release publishes."
+        required: false
+        type: string
+        default: ""
+      inject_cdn_sha:
+        description: "Inject the short commit SHA into <chart_dir>/values.yaml `cdn.commitSha` before packaging."
+        required: false
+        type: boolean
+        default: false
+      update_dependencies:
+        description: "Run `helm dependency update` before packaging (charts with subchart deps)."
+        required: false
+        type: boolean
+        default: false
+      registry:
+        description: "OCI registry hosting the chart."
+        required: false
+        type: string
+        default: ghcr.io
+
+permissions:
+  contents: read
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+      id-token: write
+    env:
+      REGISTRY: ${{ inputs.registry }}
+    steps:
+      # Decide what version to publish (and whether to publish at all):
+      #   * explicit `version` wins (RC publishes from ci.yaml);
+      #   * otherwise parse the semver out of `tag_name` using `tag_prefix`;
+      #   * a non-matching tag sets publish=false so the rest of the job is
+      #     skipped (lets monorepo matrices no-op on other components' tags).
+      - name: Resolve version
+        id: resolve
+        shell: bash
+        env:
+          VERSION_IN: ${{ inputs.version }}
+          TAG: ${{ inputs.tag_name }}
+          PREFIX: ${{ inputs.tag_prefix }}
+        run: |
+          set -euo pipefail
+          if [[ -n "${VERSION_IN}" ]]; then
+            echo "version=${VERSION_IN}" >> "$GITHUB_OUTPUT"
+            echo "publish=true" >> "$GITHUB_OUTPUT"
+          elif [[ "${TAG}" =~ ^${PREFIX}([0-9]+\.[0-9]+\.[0-9]+)$ ]]; then
+            echo "version=${BASH_REMATCH[1]}" >> "$GITHUB_OUTPUT"
+            echo "publish=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "publish=false" >> "$GITHUB_OUTPUT"
+            echo "No version input and tag '${TAG}' does not match prefix '${PREFIX}'; skipping."
+          fi
+
+      # Check out the exact ref being published (release tag for releases,
+      # triggering commit for RC publishes) so the packaged chart matches it.
+      - uses: actions/checkout@v7
+        if: steps.resolve.outputs.publish == 'true'
+        with:
+          ref: ${{ inputs.ref || github.sha }}
+
+      # `helm` packages/pushes the chart; cosign signs the pushed artifact.
+      - uses: azure/setup-helm@v5
+        if: steps.resolve.outputs.publish == 'true'
+
+      - uses: sigstore/cosign-installer@v4
+        if: steps.resolve.outputs.publish == 'true'
+
+      # cosign + helm each need their own OCI login to the registry.
+      - name: Cosign login (OCI)
+        if: steps.resolve.outputs.publish == 'true'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REGISTRY: ${{ env.REGISTRY }}
+          ACTOR: ${{ github.actor }}
+        run: |
+          echo "${GITHUB_TOKEN}" | \
+            cosign login "${REGISTRY}" \
+            -u "${ACTOR}" \
+            --password-stdin
+
+      # `helm registry login` is separate from the cosign login above.
+      - name: Helm login (OCI)
+        if: steps.resolve.outputs.publish == 'true'
+        shell: bash
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REGISTRY: ${{ env.REGISTRY }}
+          ACTOR: ${{ github.actor }}
+        run: |
+          echo "${GITHUB_TOKEN}" | \
+            helm registry login "${REGISTRY}" \
+            -u "${ACTOR}" \
+            --password-stdin
+
+      # Package the chart at the resolved version, push it to the OCI registry,
+      # then keyless-sign the pushed digest with cosign.
+      - name: Package, push & sign chart
+        if: steps.resolve.outputs.publish == 'true'
+        shell: bash
+        env:
+          VERSION: ${{ steps.resolve.outputs.version }}
+          CHART_DIR: ${{ inputs.chart_dir }}
+          INJECT_CDN_SHA: ${{ inputs.inject_cdn_sha }}
+          UPDATE_DEPS: ${{ inputs.update_dependencies }}
+          OCI_BASE: oci://${{ env.REGISTRY }}/${{ github.repository }}/charts
+          IMAGE_BASE: ${{ env.REGISTRY }}/${{ github.repository }}/charts
+        run: |
+          set -euo pipefail
+
+          CHART_NAME=$(yq '.name' "${CHART_DIR}/Chart.yaml")
+          DEST_DIR="/tmp/charts"
+          mkdir -p "${DEST_DIR}"
+
+          # Inject short commit SHA for CDN immutable path (matched by upload prefix).
+          if [[ "${INJECT_CDN_SHA}" == "true" ]]; then
+            SHORT_SHA="$(git rev-parse --short HEAD)"
+            yq -i ".cdn.commitSha = \"${SHORT_SHA}\"" "${CHART_DIR}/values.yaml"
+          fi
+
+          if [[ "${UPDATE_DEPS}" == "true" ]]; then
+            helm dependency update "${CHART_DIR}" || true
+          fi
+
+          echo "::group::${CHART_NAME} ${VERSION}"
+          helm package "${CHART_DIR}" \
+            --version "${VERSION}" \
+            --app-version "${VERSION}" \
+            -d "${DEST_DIR}"
+
+          PUSH_OUT=$(helm push \
+            "${DEST_DIR}/${CHART_NAME}-${VERSION}.tgz" \
+            "${OCI_BASE}" 2>&1) || { echo "${PUSH_OUT}"; exit 1; }
+          echo "${PUSH_OUT}"
+
+          # Tolerant digest parse: case-insensitive, allows leading whitespace.
+          DIGEST=$(printf '%s\n' "${PUSH_OUT}" \
+            | awk 'tolower($1)=="digest:"{print $2; exit}')
+          if [[ -z "${DIGEST}" ]]; then
+            echo "::error::helm push for ${CHART_NAME} succeeded but no digest found in output (helm output format may have changed)"
+            exit 1
+          fi
+
+          cosign sign --yes "${IMAGE_BASE}/${CHART_NAME}@${DIGEST}"
+          echo "::endgroup::"
