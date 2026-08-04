@@ -1,0 +1,56 @@
+name: release-please dry-run (temporary)
+
+# Temporary testing aid for the shared-reusable-workflows migration.
+# Delete this file before merging to main.
+# Runs the release-please CLI in --dry-run mode against the target branch:
+# validates config/manifest parsing and shows the release PR / release it
+# would create, without creating any branches, PRs, tags, or releases.
+
+on:
+  # Push trigger: workflow_dispatch only works for workflows already on the
+  # default branch, so on the feature branch this is what actually runs it.
+  push:
+    branches: [82-migrate-to-shared-reusable-workflows]
+  workflow_dispatch:
+    inputs:
+      target_branch:
+        description: "Branch to dry-run against"
+        required: true
+        type: string
+        default: 82-migrate-to-shared-reusable-workflows
+
+permissions:
+  contents: read
+  pull-requests: read
+  issues: read
+
+jobs:
+  dry-run:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/setup-node@v6
+        with:
+          node-version: "24"
+
+      # What release PR would release-please open (version bump + changelog)?
+      - name: Dry-run release PR
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          npx --yes release-please release-pr \
+            --token="${GITHUB_TOKEN}" \
+            --repo-url="${{ github.repository }}" \
+            --target-branch="${{ inputs.target_branch || github.ref_name }}" \
+            --dry-run --debug
+
+      # What tag/release would it cut if that PR were merged?
+      - name: Dry-run GitHub release
+        if: success()
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          npx --yes release-please github-release \
+            --token="${GITHUB_TOKEN}" \
+            --repo-url="${{ github.repository }}" \
+            --target-branch="${{ inputs.target_branch || github.ref_name }}" \
+            --dry-run --debug

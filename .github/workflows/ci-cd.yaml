@@ -8,7 +8,8 @@ run-name: >-
 
 on:
   push:
-    branches: [main]
+    # TEMP: feature branch added for reusable-workflow testing — revert to [main] before merge.
+    branches: [main, 82-migrate-to-shared-reusable-workflows]
   pull_request:
     branches: [main]
 

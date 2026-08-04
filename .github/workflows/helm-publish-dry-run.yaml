@@ -1,0 +1,84 @@
+name: helm-publish dry-run (temporary)
+
+# Temporary testing aid for the shared-reusable-workflows migration.
+# Delete this file before merging to main.
+# Rehearses the RELEASE mode of reusable-helm-publish.yaml (tag_name parsing,
+# CDN SHA injection, helm package) — the branch push in ci-cd.yaml already
+# exercises the RC mode for real. Stops before helm push / cosign sign, so
+# nothing is published.
+
+on:
+  # Push trigger: workflow_dispatch only works for workflows already on the
+  # default branch, so on the feature branch this is what actually runs it.
+  push:
+    branches: [82-migrate-to-shared-reusable-workflows]
+  workflow_dispatch:
+    inputs:
+      tag_name:
+        description: "Fake release tag to parse (must look real: vX.Y.Z)"
+        required: true
+        type: string
+        default: v99.99.99
+
+permissions:
+  contents: read
+
+jobs:
+  dry-run:
+    runs-on: ubuntu-latest
+    env:
+      TAG: ${{ inputs.tag_name || 'v99.99.99' }}
+      PREFIX: v
+      CHART_DIR: charts
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: azure/setup-helm@v5
+
+      # Same regex as reusable-helm-publish.yaml "Resolve version" (tag mode).
+      - name: Resolve version from tag
+        id: resolve
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ "${TAG}" =~ ^${PREFIX}([0-9]+\.[0-9]+\.[0-9]+)$ ]]; then
+            echo "version=${BASH_REMATCH[1]}" >> "$GITHUB_OUTPUT"
+            echo "Parsed version ${BASH_REMATCH[1]} from tag ${TAG}"
+          else
+            echo "::error::Tag '${TAG}' does not match prefix '${PREFIX}'"
+            exit 1
+          fi
+
+      # Same injection + packaging as the reusable workflow, minus push/sign.
+      - name: Inject CDN SHA and package chart
+        shell: bash
+        env:
+          VERSION: ${{ steps.resolve.outputs.version }}
+        run: |
+          set -euo pipefail
+
+          SHORT_SHA="$(git rev-parse --short HEAD)"
+          yq -i ".cdn.commitSha = \"${SHORT_SHA}\"" "${CHART_DIR}/values.yaml"
+          echo "Injected cdn.commitSha=${SHORT_SHA}:"
+          yq '.cdn' "${CHART_DIR}/values.yaml"
+
+          DEST_DIR="/tmp/charts"
+          mkdir -p "${DEST_DIR}"
+          helm package "${CHART_DIR}" \
+            --version "${VERSION}" \
+            --app-version "${VERSION}" \
+            -d "${DEST_DIR}"
+
+      # Prove the packaged chart renders and carries the injected values.
+      - name: Verify packaged chart
+        shell: bash
+        env:
+          VERSION: ${{ steps.resolve.outputs.version }}
+        run: |
+          set -euo pipefail
+          CHART_NAME=$(yq '.name' "${CHART_DIR}/Chart.yaml")
+          TGZ="/tmp/charts/${CHART_NAME}-${VERSION}.tgz"
+          ls -la "${TGZ}"
+          helm show chart "${TGZ}"
+          helm template test "${TGZ}" > /dev/null
+          echo "Chart ${CHART_NAME}-${VERSION} packages and renders OK (push/sign skipped)."
