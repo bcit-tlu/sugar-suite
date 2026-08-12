@@ -38,21 +38,22 @@
 
 ## CI/CD
 
-- CI uses shared `bcit-tlu/.github` OCI build reusable workflow
-- `helm-lint` validates Helm charts on every push and PR
+- CI uses shared `bcit-tlu/.github` reusable workflows: `oci-build.yaml` (image build), `helm-lint.yaml` (chart lint + kubeconform), and `helm-publish.yaml` (package + push + cosign-sign)
+- `helm-lint` validates Helm charts on every push and PR via the shared `helm-lint.yaml` (passes `extra_command: bash tests/helm-cdn-rewrite.sh`)
 - `release-please` manages versioning via conventional commits (`release-type: "simple"`)
 - Version is tracked in `.release-please-manifest.json` and `Chart.yaml` (`# x-release-please-version` annotations)
 - Images are published to `ghcr.io/bcit-tlu/sugar-suite/sugar-suite`
 - Charts are published to `oci://ghcr.io/bcit-tlu/sugar-suite/charts`
-- `FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true` is set in all workflows
 
 ### Workflow map
 
-- `ci.yaml` — push/PR to `main`: parallel chart lint + kubeconform, reusable OCI build, RC Helm chart publish from `main`
-- `pr-title-lint.yaml` — enforces Conventional Commit PR titles
-- `release-please.yaml` — runs release-please on `main`; guards against stale `release-as` pins; dispatches downstream workflows
-- `helm-publish.yaml` — publishes signed Helm chart for release tags (`vX.Y.Z`) or manual dispatch
-- `release-retag.yaml` — retags `sha-<commit>` image to semver + optional `latest` (highest stable only), then signs
+- `ci-cd.yaml` — push/PR to `main`: shared `helm-lint.yaml`, reusable OCI build, RC Helm chart publish from `main` via shared `helm-publish.yaml`
+- `pr-title-lint.yaml` — thin caller of shared `bcit-tlu/.github` `pr-title-lint.yaml`; enforces Conventional Commit PR titles
+- `release-please.yaml` — thin caller of shared `bcit-tlu/.github` `release-please.yaml`; runs release-please on `main`, guards stale `release-as` pins, dispatches `helm-publish.yaml`/`release-retag.yaml`
+- `helm-publish.yaml` — thin caller of shared `bcit-tlu/.github` `helm-publish.yaml`; publishes signed Helm chart for release tags (`vX.Y.Z`) or manual dispatch
+- `release-retag.yaml` — thin caller of shared `bcit-tlu/.github` `release-retag.yaml`; retags `sha-<commit>` image to semver + optional `latest` (highest stable only), then signs
+
+Reusable workflows live in `bcit-tlu/.github/.github/workflows/`: `oci-build.yaml`, `cdn-upload.yaml`, `helm-lint.yaml`, `helm-publish.yaml`, `pr-title-lint.yaml`, `release-please.yaml`, `release-retag.yaml`.
 
 ### Release/versioning
 

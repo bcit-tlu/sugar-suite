@@ -9,70 +9,17 @@ permissions:
   contents: read
 
 jobs:
+  # Run release-please on main. It creates/updates the release PR and, when
+  # a release is merged, dispatches the chart publish and image retag workflows.
   release:
-    runs-on: ubuntu-latest
+    uses: bcit-tlu/.github/.github/workflows/release-please.yaml@10-centralize-shared-ci-workflows-into-reusable-workflows
     permissions:
       contents: write
       issues: write
       pull-requests: write
-    outputs:
-      releases_created: ${{ steps.rp.outputs.releases_created }}
-      tag_name: ${{ steps.rp.outputs['tag_name'] }}
-    steps:
-      - uses: googleapis/release-please-action@v5
-        id: rp
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
-
-      # Guard: stale release-as pins block future semver bumps.
-      - uses: actions/checkout@v7
-        if: steps.rp.outputs.releases_created != 'true'
-      - name: Guard against stale `release-as` entries
-        if: steps.rp.outputs.releases_created != 'true'
-        run: |
-          python3 - <<'PY'
-          import json, sys
-          with open("release-please-config.json") as f:
-              cfg = json.load(f)
-          with open(".release-please-manifest.json") as f:
-              manifest = json.load(f)
-          stale = []
-          for pkg, conf in cfg.get("packages", {}).items():
-              ra = conf.get("release-as")
-              if ra is not None and manifest.get(pkg) == ra:
-                  stale.append((pkg, ra))
-          if stale:
-              print("::error::Stale `release-as` entries in release-please-config.json:")
-              for pkg, ra in stale:
-                  print(f"::error::  packages.{pkg}.release-as={ra} already matches .release-please-manifest.json — remove this field so release-please can resume normal semver bumps.")
-              sys.exit(1)
-          PY
-
-  # GITHUB_TOKEN releases don't trigger tag workflows; dispatch explicitly.
-  dispatch-publish:
-    needs: release
-    if: needs.release.outputs.releases_created == 'true'
-    runs-on: ubuntu-latest
-    permissions:
-      actions: write
-      contents: read
-    steps:
-      - name: Dispatch downstream workflows for the released tag
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          GH_REPO: ${{ github.repository }}
-          TAG: ${{ needs.release.outputs.tag_name }}
-        run: |
-          set -euo pipefail
-          if [[ -z "${TAG}" ]]; then
-            echo "::warning::release-please reported a release but no tag_name output; skipping dispatch"
-            exit 0
-          fi
-          echo "Dispatching helm-publish.yaml for ${TAG}"
-          gh workflow run helm-publish.yaml \
-            --ref "${TAG}" \
-            -f tag_name="${TAG}"
-          echo "Dispatching release-retag.yaml for ${TAG}"
-          gh workflow run release-retag.yaml \
-            --ref "${TAG}" \
-            -f tag_name="${TAG}"
+      actions: write        # for dispatch_workflows
+    with:
+      dispatch_workflows: |
+        helm-publish.yaml
+        release-retag.yaml
+    secrets: inherit

@@ -1,0 +1,122 @@
+name: "[CI/CD] Lint, build & publish"
+
+# PR runs show PR title; main runs show head commit subject.
+run-name: >-
+  ${{ github.event_name == 'pull_request'
+      && format('PR #{0} — {1}', github.event.pull_request.number, github.event.pull_request.title)
+      || format('Head build — {0}', github.event.head_commit.message) }}
+
+on:
+  push:
+    # Branch 82: feature branch added for shared-workflow testing — revert to only [main] when done
+    branches: [main, 82-migrate-to-shared-reusable-workflows]
+  pull_request:
+    branches: [main]
+
+env:
+  ASSET_EXTENSIONS: "css,js,map,jpg,jpeg,png,webp,gif,svg,ico,mp4,woff,woff2,ttf,otf,eot"
+
+# Default to least privilege; jobs elevate only when needed.
+permissions:
+  contents: read
+
+jobs:
+  # Chart quality gate: lint, render, and (optionally) schema-validate the Helm
+  # chart using the shared reusable workflow.
+  helm-lint:
+    uses: bcit-tlu/.github/.github/workflows/helm-lint.yaml@10-centralize-shared-ci-workflows-into-reusable-workflows
+    permissions:
+      contents: read
+    with:
+      chart_glob: "charts/"
+      extra_command: bash tests/helm-cdn-rewrite.sh
+
+  # Build, sign, scan, and publish the OCI image using the shared reusable
+  # workflow. This also outputs an RC version for the chart publish step.
+  build-sugar-suite:
+    uses: bcit-tlu/.github/.github/workflows/oci-build.yaml@10-centralize-shared-ci-workflows-into-reusable-workflows
+    permissions:
+      contents: read
+      packages: write
+      id-token: write
+      security-events: write
+      actions: read
+    with:
+      component: sugar-suite
+      image_name: sugar-suite
+      context: .
+      tag_prefix: "v"
+    secrets: inherit
+
+  # Package and push the Helm chart for the matching RC image. Runs on main
+  # pushes only; the version comes from the oci-build reusable workflow.
+  helm-publish:
+    needs: [helm-lint, build-sugar-suite, cdn-upload]
+    if: >-
+      github.event_name != 'pull_request'
+      && needs.build-sugar-suite.outputs.rc_version != ''
+    uses: bcit-tlu/.github/.github/workflows/helm-publish.yaml@10-centralize-shared-ci-workflows-into-reusable-workflows
+    permissions:
+      contents: read
+      packages: write
+      id-token: write
+    with:
+      chart_dir: charts
+      version: ${{ needs.build-sugar-suite.outputs.rc_version }}
+      inject_cdn_sha: true
+    secrets: inherit
+
+  # Upload static assets to Azure CDN blob storage.
+  # Only on main; reuses the bcit-tlu/.github reusable workflow.
+
+  # Build the static site locally and rewrite asset URLs for the CDN upload.
+  # The Docker build happens separately in the build-sugar-suite job.
+  build-assets:
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    outputs:
+      short_sha: ${{ steps.set-sha.outputs.short_sha }}
+      asset_extensions: ${{ steps.set-extensions.outputs.asset_extensions }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v6
+        with:
+          node-version: "24"
+      - run: npm ci
+      - run: npm run build
+      - id: set-sha
+        run: echo "short_sha=$(git rev-parse --short HEAD)" >> "$GITHUB_OUTPUT"
+      - id: set-extensions
+        run: echo "asset_extensions=${ASSET_EXTENSIONS}" >> "$GITHUB_OUTPUT"
+
+      - name: Rewrite asset URLs for CDN upload
+        env:
+          CDN_BASE_URL: ${{ vars.CDN_BASE_URL }}
+          CDN_NAMESPACE: ${{ vars.CDN_NAMESPACE }}
+          REPO_NAME: ${{ github.event.repository.name }}
+          SHORT_SHA: ${{ steps.set-sha.outputs.short_sha }}
+          ASSET_EXTENSIONS: ${{ env.ASSET_EXTENSIONS }}
+        run: bash .github/scripts/cdn-rewrite-dist.sh
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: dist
+          path: dist/
+
+  # Upload the rewritten dist/ artifacts to Azure CDN under the short-SHA prefix.
+  cdn-upload:
+    needs: build-assets
+    uses: bcit-tlu/.github/.github/workflows/cdn-upload.yaml@10-centralize-shared-ci-workflows-into-reusable-workflows
+    permissions:
+      contents: read
+    with:
+      dist_dir: "dist"
+      artifact_name: "dist"
+      destination_prefix: ${{ vars.CDN_NAMESPACE }}/${{ github.event.repository.name }}/${{ needs.build-assets.outputs.short_sha }}
+      cdn_account_name: ${{ vars.CDN_ACCOUNT_NAME }}
+      cdn_container: ${{ vars.CDN_CONTAINER }}
+      asset_extensions: ${{ needs.build-assets.outputs.asset_extensions }}
+    secrets:
+      CDN_SAS_TOKEN: ${{ secrets.CDN_SAS_TOKEN }}
