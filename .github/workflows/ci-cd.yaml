@@ -8,7 +8,7 @@ run-name: >-
 
 on:
   push:
-    # TEMP: feature branch added for reusable-workflow testing — revert to [main] before merge.
+    # Branch 82: feature branch added for shared-workflow testing — revert to only [main] when done
     branches: [main, 82-migrate-to-shared-reusable-workflows]
   pull_request:
     branches: [main]
@@ -22,19 +22,19 @@ permissions:
 
 jobs:
   # Chart quality gate: lint, render, and (optionally) schema-validate the Helm
-  # chart using the local reusable workflow (testing ground for bcit-tlu/.github).
+  # chart using the shared reusable workflow.
   helm-lint:
-    uses: ./.github/workflows/reusable-helm-lint.yaml
+    uses: bcit-tlu/.github/.github/workflows/helm-lint.yaml@10-centralize-shared-ci-workflows-into-reusable-workflows
     permissions:
       contents: read
     with:
       chart_glob: "charts/"
       extra_command: bash tests/helm-cdn-rewrite.sh
 
-  # Build, sign, scan, and publish the OCI image using the local reusable
+  # Build, sign, scan, and publish the OCI image using the shared reusable
   # workflow. This also outputs an RC version for the chart publish step.
   build-sugar-suite:
-    uses: ./.github/workflows/reusable-oci-build.yaml
+    uses: bcit-tlu/.github/.github/workflows/oci-build.yaml@10-centralize-shared-ci-workflows-into-reusable-workflows
     permissions:
       contents: read
       packages: write
@@ -55,7 +55,7 @@ jobs:
     if: >-
       github.event_name != 'pull_request'
       && needs.build-sugar-suite.outputs.rc_version != ''
-    uses: ./.github/workflows/reusable-helm-publish.yaml
+    uses: bcit-tlu/.github/.github/workflows/helm-publish.yaml@10-centralize-shared-ci-workflows-into-reusable-workflows
     permissions:
       contents: read
       packages: write
@@ -67,7 +67,7 @@ jobs:
     secrets: inherit
 
   # Upload static assets to Azure CDN blob storage.
-  # Only on main; uses the local reusable workflow.
+  # Only on main; reuses the bcit-tlu/.github reusable workflow.
 
   # Build the static site locally and rewrite asset URLs for the CDN upload.
   # The Docker build happens separately in the build-sugar-suite job.
@@ -108,7 +108,7 @@ jobs:
   # Upload the rewritten dist/ artifacts to Azure CDN under the short-SHA prefix.
   cdn-upload:
     needs: build-assets
-    uses: ./.github/workflows/reusable-cdn-upload.yaml
+    uses: bcit-tlu/.github/.github/workflows/cdn-upload.yaml@10-centralize-shared-ci-workflows-into-reusable-workflows
     permissions:
       contents: read
     with:
