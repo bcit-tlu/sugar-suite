@@ -1,5 +1,14 @@
 # Changelog
 
+## [1.3.4](https://github.com/bcit-tlu/sugar-suite/compare/v1.3.3...v1.3.4) (2026-08-12)
+
+
+### Bug Fixes
+
+* bump GitHub Actions in the actions-minor-patch group ([#80](https://github.com/bcit-tlu/sugar-suite/issues/80)) ([28d397d](https://github.com/bcit-tlu/sugar-suite/commit/28d397dbc27460a83c5c7d3e4440342e85c9e78e))
+* remove FORCE_JAVASCRIPT_ACTIONS_TO_NODE24 env var and update PR title lint actions ([#77](https://github.com/bcit-tlu/sugar-suite/issues/77)) ([8d401c8](https://github.com/bcit-tlu/sugar-suite/commit/8d401c891533cbd821428e25840c9f4f6c50b012))
+* test 82 migrate to shared reusable workflows ([#83](https://github.com/bcit-tlu/sugar-suite/issues/83)) ([f14d8fd](https://github.com/bcit-tlu/sugar-suite/commit/f14d8fd0dd59aef345426482ada8e157c6e8be3e))
+
 ## [1.3.3](https://github.com/bcit-tlu/sugar-suite/compare/v1.3.2...v1.3.3) (2026-07-01)
 
 
