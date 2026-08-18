@@ -12,18 +12,19 @@
     "test:coverage": "jest --coverage"
   },
   "devDependencies": {
-    "vite": "^8.1.5",
-    "sass": "^1.101.3",
-    "postcss": "^8.5.21",
+    "vite": "^8.2.1",
+    "sass": "^1.102.0",
+    "postcss": "^8.5.26",
     "autoprefixer": "^10.5.4",
-    "cssnano": "^8.0.2",
-    "terser": "^5.49.0",
+    "cssnano": "^8.0.6",
+    "terser": "^5.50.0",
     "vite-plugin-compression2": "^2.5.3",
     "glob": "^13.0.6",
-    "concurrently": "^9.2.4",
+    "concurrently": "^10.0.5",
     "jquery": "^4.0.0",
     "jest": "^30.4.2",
     "jest-environment-jsdom": "^30.4.1",
-    "@testing-library/jest-dom": "^6.9.1"
+    "@testing-library/dom": "^10.4.1",
+    "@testing-library/jest-dom": "^7.0.1"
   }
 }
