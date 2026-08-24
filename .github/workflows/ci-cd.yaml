@@ -8,8 +8,7 @@ run-name: >-
 
 on:
   push:
-    # Branch 82: feature branch added for shared-workflow testing — revert to only [main] when done
-    branches: [main, 82-migrate-to-shared-reusable-workflows]
+    branches: [main]
   pull_request:
     branches: [main]
 
@@ -24,7 +23,7 @@ jobs:
   # Chart quality gate: lint, render, and (optionally) schema-validate the Helm
   # chart using the shared reusable workflow.
   helm-lint:
-    uses: bcit-tlu/.github/.github/workflows/helm-lint.yaml@10-centralize-shared-ci-workflows-into-reusable-workflows
+    uses: bcit-tlu/.github/.github/workflows/helm-lint.yaml@main
     permissions:
       contents: read
     with:
@@ -34,7 +33,7 @@ jobs:
   # Build, sign, scan, and publish the OCI image using the shared reusable
   # workflow. This also outputs an RC version for the chart publish step.
   build-sugar-suite:
-    uses: bcit-tlu/.github/.github/workflows/oci-build.yaml@10-centralize-shared-ci-workflows-into-reusable-workflows
+    uses: bcit-tlu/.github/.github/workflows/oci-build.yaml@main
     permissions:
       contents: read
       packages: write
@@ -55,7 +54,7 @@ jobs:
     if: >-
       github.event_name != 'pull_request'
       && needs.build-sugar-suite.outputs.rc_version != ''
-    uses: bcit-tlu/.github/.github/workflows/helm-publish.yaml@10-centralize-shared-ci-workflows-into-reusable-workflows
+    uses: bcit-tlu/.github/.github/workflows/helm-publish.yaml@main
     permissions:
       contents: read
       packages: write
@@ -108,7 +107,7 @@ jobs:
   # Upload the rewritten dist/ artifacts to Azure CDN under the short-SHA prefix.
   cdn-upload:
     needs: build-assets
-    uses: bcit-tlu/.github/.github/workflows/cdn-upload.yaml@10-centralize-shared-ci-workflows-into-reusable-workflows
+    uses: bcit-tlu/.github/.github/workflows/cdn-upload.yaml@main
     permissions:
       contents: read
     with:

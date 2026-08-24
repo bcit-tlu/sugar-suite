@@ -19,7 +19,7 @@ jobs:
   # Promote the already-published sha-<commit> image to the release tag and
   # cosign-sign it. This is triggered by a release or workflow_dispatch.
   retag:
-    uses: bcit-tlu/.github/.github/workflows/release-retag.yaml@10-centralize-shared-ci-workflows-into-reusable-workflows
+    uses: bcit-tlu/.github/.github/workflows/release-retag.yaml@main
     permissions:
       contents: read
       packages: write

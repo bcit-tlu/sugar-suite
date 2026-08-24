@@ -12,7 +12,7 @@ jobs:
   # Run release-please on main. It creates/updates the release PR and, when
   # a release is merged, dispatches the chart publish and image retag workflows.
   release:
-    uses: bcit-tlu/.github/.github/workflows/release-please.yaml@10-centralize-shared-ci-workflows-into-reusable-workflows
+    uses: bcit-tlu/.github/.github/workflows/release-please.yaml@main
     permissions:
       contents: write
       issues: write
