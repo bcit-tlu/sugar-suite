@@ -44,6 +44,7 @@
 - Version is tracked in `.release-please-manifest.json` and `Chart.yaml` (`# x-release-please-version` annotations)
 - Images are published to `ghcr.io/bcit-tlu/sugar-suite/sugar-suite`
 - Charts are published to `oci://ghcr.io/bcit-tlu/sugar-suite/charts`
+- Dependency updates are handled by self-hosted Renovate (GitHub Actions, `GITHUB_TOKEN` — no third-party app), configured by root `renovate.json` extending the shared `bcit-tlu/.github` preset (`github>bcit-tlu/.github//.github/renovate/default` → `.github/renovate/default.json`); all minor/patch updates are batched into one long-lived PR (branch `renovate/all-minor-patch`), major updates open separate PRs, and releases younger than 7 days (`minimumReleaseAge`) are held back — security fixes bypass the delay. `packageManager` in `package.json` pins npm to the version bundled in the Dockerfile's `node:` image so Renovate regenerates `package-lock.json` with the same npm used by production builds. PRs are opened by `github-actions[bot]`; CI on those PRs requires one-time approval from a write-access user (GitHub bot-PR security gate). The thin caller `renovate.yaml` runs the shared `bcit-tlu/.github/.github/workflows/renovate.yaml` on a weekday schedule
 
 ### Workflow map
 
@@ -52,8 +53,9 @@
 - `release-please.yaml` — thin caller of shared `bcit-tlu/.github` `release-please.yaml`; runs release-please on `main`, guards stale `release-as` pins, dispatches `helm-publish.yaml`/`release-retag.yaml`
 - `helm-publish.yaml` — thin caller of shared `bcit-tlu/.github` `helm-publish.yaml`; publishes signed Helm chart for release tags (`vX.Y.Z`) or manual dispatch
 - `release-retag.yaml` — thin caller of shared `bcit-tlu/.github` `release-retag.yaml`; retags `sha-<commit>` image to semver + optional `latest` (highest stable only), then signs
+- `renovate.yaml` — thin caller of shared `bcit-tlu/.github` `renovate.yaml`; runs self-hosted Renovate on a weekday schedule
 
-Reusable workflows live in `bcit-tlu/.github/.github/workflows/`: `oci-build.yaml`, `cdn-upload.yaml`, `helm-lint.yaml`, `helm-publish.yaml`, `pr-title-lint.yaml`, `release-please.yaml`, `release-retag.yaml`.
+Reusable workflows live in `bcit-tlu/.github/.github/workflows/`: `oci-build.yaml`, `cdn-upload.yaml`, `helm-lint.yaml`, `helm-publish.yaml`, `pr-title-lint.yaml`, `release-please.yaml`, `release-retag.yaml`, `renovate.yaml`.
 
 ### Release/versioning
 
