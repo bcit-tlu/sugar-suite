@@ -6,8 +6,8 @@ name: renovate
 
 on:
   schedule:
-    # Every weekday at 09:00 UTC
-    - cron: '0 9 * * 1-5'
+    # Every weekday at 09:30 PT (17:30 UTC)
+    - cron: '30 17 * * 1-5'
   workflow_dispatch:
 
 permissions:
