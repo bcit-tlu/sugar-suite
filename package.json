@@ -12,6 +12,15 @@
     "test:watch": "jest --watch",
     "test:coverage": "jest --coverage"
   },
+  "dependencies": {
+    "@opentelemetry/api-logs": "^0.218.0",
+    "@opentelemetry/browser-instrumentation": "^0.5.2",
+    "@opentelemetry/exporter-logs-otlp-http": "^0.218.0",
+    "@opentelemetry/instrumentation": "^0.218.0",
+    "@opentelemetry/resources": "^2.7.1",
+    "@opentelemetry/sdk-logs": "^0.218.0",
+    "@opentelemetry/semantic-conventions": "^1.41.1"
+  },
   "devDependencies": {
     "vite": "^8.2.1",
     "sass": "^1.102.0",
@@ -19,6 +28,7 @@
     "autoprefixer": "^10.5.4",
     "cssnano": "^8.0.6",
     "terser": "^5.50.0",
+    "esbuild": "^0.28.0",
     "vite-plugin-compression2": "^2.5.3",
     "glob": "^13.0.6",
     "concurrently": "^10.0.5",

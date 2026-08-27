@@ -1,0 +1,138 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "sugar-suite.fullname" . }}-nginx
+  labels:
+    {{- include "sugar-suite.labels" . | nindent 4 }}
+data:
+  default.conf: |
+    # Logging helpers
+
+    # Detect kubelet probes
+    map $http_user_agent $is_probe { default 0; ~kube-probe 1; }
+
+    # Detect error statuses
+    map $status $is_error { default 0; ~^[45] 1; }
+
+    # Log only failing probes
+    map "$is_probe:$is_error" $log_probe_fail { default 0; "1:1" 1; }
+
+    # Log non-probe traffic
+    map $is_probe $not_probe { 0 1; 1 0; }
+
+    # Rate limit log ingestion per client IP (proxy is unauthenticated)
+    limit_req_zone $binary_remote_addr zone=otellogs:10m rate=60r/m;
+
+    # JSON access log for normal traffic
+    log_format json escape=json
+      '{'
+        '"ts":"$time_iso8601",'
+        '"remote":"$remote_addr",'
+        '"method":"$request_method",'
+        '"uri":"$request_uri",'
+        '"status":$status,'
+        '"bytes":$body_bytes_sent,'
+        '"rt":$request_time,'
+        '"ref":"$http_referer",'
+        '"ua":"$http_user_agent",'
+        '"req_id":"$request_id"'
+      '}';
+
+    # Compact probe log format
+    log_format probe '$remote_addr - $time_local "$request" $status rt=$request_time';
+
+    # Send error logs to stderr
+    error_log /dev/stderr warn;
+
+    # Server
+    server {
+      listen 8080;
+      server_name _;
+
+      root /usr/share/nginx/html;
+      index index.html;
+
+      # Serve precompressed gzip assets when the client supports it
+      gzip_static on;
+      gzip_vary on;
+
+      absolute_redirect off;
+      port_in_redirect off;
+      server_name_in_redirect off;
+
+      # Access logging
+      access_log /dev/stdout json  if=$not_probe;
+      access_log /dev/stdout probe if=$log_probe_fail;
+
+      # Long cache for immutable static assets
+      location ~* \.(woff|woff2|ttf|otf|eot|svg)$ {
+        add_header Cache-Control "public, max-age=31536000, immutable";
+        add_header Access-Control-Allow-Origin "*" always;
+        add_header Access-Control-Allow-Methods "GET, OPTIONS" always;
+        try_files $uri $uri/ =404;
+      }
+
+      location ~* \.(css|js|map|jpg|jpeg|png|gif|svg|ico|mp4|woff|woff2|ttf|otf|eot)$ {
+        add_header Cache-Control "public, max-age=31536000, immutable";
+        try_files $uri $uri/ =404;
+      }
+
+      # Gzip sidecar assets
+      location ~* \.(css|js)\.gz$ {
+        add_header Cache-Control "public, max-age=31536000, immutable";
+        add_header Content-Encoding gzip;
+        try_files $uri =404;
+      }
+
+      # HTML should revalidate frequently
+      location ~* \.html$ {
+        add_header Cache-Control "public, max-age=3600, must-revalidate";
+        try_files $uri $uri/ =404;
+      }
+
+      # Directory listing for unmatched paths
+      location / {
+        autoindex on;
+        try_files $uri $uri/ =404;
+      }
+
+      # OTel log ingestion proxy
+      # Variable proxy_pass defers DNS to request time so a missing collector
+      # can't abort nginx startup; resolver required for variable backends
+      location = /v1/logs {
+        limit_except POST { deny all; }
+        limit_req zone=otellogs burst=20 nodelay;
+        resolver kube-dns.kube-system.svc.cluster.local valid=30s ipv6=off;
+        set $otel_backend "{{ .Values.observability.openTelemetry.collectorEndpoint }}";
+        proxy_pass http://$otel_backend/v1/logs;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header Content-Type $content_type;
+        client_max_body_size 64k;
+        access_log off;
+      }
+
+      # Health endpoints
+      location = /healthz {
+        access_log off;
+        add_header Content-Type application/json;
+        return 200 '{"status":"HEALTHY"}';
+      }
+
+      location = /healthz/startup {
+        access_log off;
+        add_header Content-Type application/json;
+        return 200 '{"status":"STARTUP_OK"}';
+      }
+
+      location = /healthz/ready {
+        access_log off;
+        add_header Content-Type application/json;
+        return 200 '{"status":"READY_OK"}';
+      }
+
+      # Transport settings
+      sendfile on;
+      keepalive_timeout 65s;
+    }
