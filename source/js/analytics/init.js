@@ -1,16 +1,18 @@
 import { logs, SeverityNumber } from '@opentelemetry/api-logs';
 import {
   LoggerProvider,
+  BatchLogRecordProcessor,
   SimpleLogRecordProcessor,
   ConsoleLogRecordExporter,
 } from '@opentelemetry/sdk-logs';
+import { OTLPLogExporter } from '@opentelemetry/exporter-logs-otlp-http';
 import { resourceFromAttributes } from '@opentelemetry/resources';
 import { ATTR_SERVICE_NAME, ATTR_SERVICE_VERSION } from '@opentelemetry/semantic-conventions';
 import { registerInstrumentations } from '@opentelemetry/instrumentation';
 import { ErrorsInstrumentation } from '@opentelemetry/browser-instrumentation/experimental/errors';
 import pkg from '../../../package.json';
 
-var { version } = pkg;
+var SESSION_KEY = 'otel_session_id';
 
 // Component selectors to scan for on page load
 var COMPONENT_SELECTORS = {
@@ -25,14 +27,8 @@ var COMPONENT_SELECTORS = {
   'swapper': '.swapper',
 };
 
-function getSessionId() {
-  var id = localStorage.getItem('otel_session_id');
-  if (!id) {
-    id = crypto.randomUUID();
-    localStorage.setItem('otel_session_id', id);
-  }
-  return id;
-}
+var _loggerProvider = null;
+var _sessionId = null;
 
 function isProduction() {
   return (
@@ -41,69 +37,44 @@ function isProduction() {
   );
 }
 
-var _loggerProvider = null;
-
-function init() {
-  var prod = isProduction();
-
-  var resource = resourceFromAttributes({
-    [ATTR_SERVICE_NAME]: 'sugar-suite',
-    [ATTR_SERVICE_VERSION]: version,
-  });
-
-  // TODO: enable OTLPLogExporter once /v1/logs endpoint is deployed
-  var processors = [];
-  if (!prod) {
-    var logExporter = new ConsoleLogRecordExporter();
-    processors.push(new SimpleLogRecordProcessor(logExporter));
+// Per-tab session ID (sessionStorage); falls back to in-memory if storage is blocked
+function getSessionId() {
+  if (_sessionId) {
+    return _sessionId;
   }
+  try {
+    _sessionId = sessionStorage.getItem(SESSION_KEY);
+    if (!_sessionId) {
+      _sessionId = crypto.randomUUID();
+      sessionStorage.setItem(SESSION_KEY, _sessionId);
+    }
+  } catch (e) {
+    _sessionId = 'no-storage';
+  }
+  return _sessionId;
+}
 
-  _loggerProvider = new LoggerProvider({
-    resource,
-    processors,
-  });
-
-  logs.setGlobalLoggerProvider(_loggerProvider);
-
-  registerInstrumentations({
-    instrumentations: [new ErrorsInstrumentation()],
-  });
-
-  var sessionId = getSessionId();
-  var commonAttributes = {
+function getCommonAttributes() {
+  return {
+    'session.id': getSessionId(),
     'user_agent': navigator.userAgent,
     'screen_resolution': screen.width + 'x' + screen.height,
     'referrer': document.referrer || '',
-    'session.id': sessionId,
   };
+}
 
-  // Emit sugar_suite_loaded
-  logEvent('sugar_suite_loaded', {
-    url: window.location.href,
-    ...commonAttributes,
+function createLoggerProvider() {
+  var resource = resourceFromAttributes({
+    [ATTR_SERVICE_NAME]: 'sugar-suite',
+    [ATTR_SERVICE_VERSION]: pkg.version,
   });
 
-  // Scan for components and emit component_initialized per type
-  Object.keys(COMPONENT_SELECTORS).forEach(function (type) {
-    var selector = COMPONENT_SELECTORS[type];
-    var elements = document.querySelectorAll(selector);
-    if (elements.length > 0) {
-      logEvent('component_initialized', {
-        'component_type': type,
-        'count': String(elements.length),
-        ...commonAttributes,
-      });
-    }
-  });
+  // Dev prints to console; prod batches to the nginx /v1/logs proxy
+  var processors = isProduction()
+    ? [new BatchLogRecordProcessor(new OTLPLogExporter({ url: '/v1/logs' }))]
+    : [new SimpleLogRecordProcessor(new ConsoleLogRecordExporter())];
 
-  // Flush pending logs on tab close / navigate away
-  document.addEventListener('visibilitychange', function () {
-    if (document.visibilityState === 'hidden') {
-      if (_loggerProvider) {
-        _loggerProvider.forceFlush();
-      }
-    }
-  });
+  return new LoggerProvider({ resource, processors });
 }
 
 function logEvent(eventName, attributes) {
@@ -123,21 +94,58 @@ function logEvent(eventName, attributes) {
 }
 
 function trackEvent(eventName, attributes) {
-  var sessionId = getSessionId();
-  logEvent(eventName, {
-    'session.id': sessionId,
-    'user_agent': navigator.userAgent,
-    'screen_resolution': screen.width + 'x' + screen.height,
-    'referrer': document.referrer || '',
-    ...attributes,
-  });
+  logEvent(eventName, { ...getCommonAttributes(), ...attributes });
 }
 
-// Auto-init on load
-init();
+function init() {
+  // Skip if already initialized (lat.js may be included more than once on a page)
+  if (window.otelAnalytics) {
+    return;
+  }
 
-// Expose global API for use in feature modules
-window.otelAnalytics = {
-  logEvent: logEvent,
-  trackEvent: trackEvent,
-};
+  _loggerProvider = createLoggerProvider();
+  logs.setGlobalLoggerProvider(_loggerProvider);
+
+  registerInstrumentations({
+    instrumentations: [new ErrorsInstrumentation()],
+  });
+
+  logEvent('sugar_suite_loaded', {
+    url: window.location.href,
+    ...getCommonAttributes(),
+  });
+
+  // Emit component_initialized once per component type present on the page
+  Object.keys(COMPONENT_SELECTORS).forEach(function (type) {
+    var elements = document.querySelectorAll(COMPONENT_SELECTORS[type]);
+    if (elements.length > 0) {
+      logEvent('component_initialized', {
+        'component_type': type,
+        'count': String(elements.length),
+        ...getCommonAttributes(),
+      });
+    }
+  });
+
+  // Flush pending logs on tab close / navigate away
+  document.addEventListener('visibilitychange', function () {
+    if (document.visibilityState === 'hidden' && _loggerProvider) {
+      _loggerProvider.forceFlush();
+    }
+  });
+
+  // Expose global API for use in feature modules
+  window.otelAnalytics = {
+    logEvent: logEvent,
+    trackEvent: trackEvent,
+  };
+}
+
+// Analytics must never break the host page
+try {
+  init();
+} catch (e) {
+  if (!isProduction()) {
+    console.debug('[otel-analytics] init failed', e);
+  }
+}

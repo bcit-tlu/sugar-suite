@@ -20,6 +20,9 @@ data:
     # Log non-probe traffic
     map $is_probe $not_probe { 0 1; 1 0; }
 
+    # Rate limit log ingestion per client IP (proxy is unauthenticated)
+    limit_req_zone $binary_remote_addr zone=otellogs:10m rate=60r/m;
+
     # JSON access log for normal traffic
     log_format json escape=json
       '{'
@@ -94,8 +97,14 @@ data:
       }
 
       # OTel log ingestion proxy
+      # Variable proxy_pass defers DNS to request time so a missing collector
+      # can't abort nginx startup; resolver required for variable backends
       location = /v1/logs {
-        proxy_pass http://{{ .Values.observability.openTelemetry.collectorEndpoint }}/v1/logs;
+        limit_except POST { deny all; }
+        limit_req zone=otellogs burst=20 nodelay;
+        resolver kube-dns.kube-system.svc.cluster.local valid=30s ipv6=off;
+        set $otel_backend "{{ .Values.observability.openTelemetry.collectorEndpoint }}";
+        proxy_pass http://$otel_backend/v1/logs;
         proxy_http_version 1.1;
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;

@@ -29,16 +29,23 @@ export default defineConfig({
         });
       },
       async generateBundle() { // runs during bundle generation
-        // bundle OTel analytics IIFE via esbuild (prepended to lat.js)
+        // bundle OTel analytics as a separate opt-in IIFE (pages opt in via
+        // their own script tag, so an analytics failure can never abort lat.js)
         const analyticsResult = await esbuild.build({
           entryPoints: [resolve(__dirname, 'source/js/analytics/init.js')],
           bundle: true,
           format: 'iife',
           minify: true,
           target: 'es2020',
+          define: { 'process.env.NODE_ENV': '"production"' },
           write: false,
         });
-        const analyticsIIFE = analyticsResult.outputFiles[0].text;
+
+        this.emitFile({
+          type: 'asset',
+          fileName: 'js/otel-analytics.js',
+          source: analyticsResult.outputFiles[0].text
+        });
 
         // process main js features (equivalent to gulp's scripts task)
         const mainJsContent = getModuleContent('source/js/features'); // get concatenated js content
@@ -83,7 +90,7 @@ export default defineConfig({
         this.emitFile({ // emit the file to output
           type: 'asset', // file type
           fileName: 'js/lat.js', // output filename
-          source: analyticsIIFE + '\n' + minifiedMainJs.code + '\n//# sourceMappingURL=lat.js.map' // analytics IIFE + features + .map reference
+          source: minifiedMainJs.code + '\n//# sourceMappingURL=lat.js.map' // features + .map reference
         });
 
         // process experimental js (equivalent to gulp's experimental task)
