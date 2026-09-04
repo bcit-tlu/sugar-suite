@@ -3,7 +3,7 @@
   "private": true,
   "version": "1.3.4",
   "type": "module",
-  "packageManager": "npm@11.17.0",
+  "packageManager": "npm@11.19.1",
   "scripts": {
     "build": "vite build",
     "quick": "vite build && vite preview --port 9000",
