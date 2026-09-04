@@ -17,7 +17,7 @@
     "sass": "^1.102.0",
     "postcss": "^8.5.26",
     "autoprefixer": "^10.5.4",
-    "cssnano": "^8.0.6",
+    "cssnano": "^9.0.0",
     "terser": "^5.50.0",
     "vite-plugin-compression2": "^2.5.3",
     "glob": "^13.0.6",
