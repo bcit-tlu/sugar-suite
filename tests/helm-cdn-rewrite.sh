@@ -46,12 +46,14 @@ check 'rewrite did not inject'
 # container's identical resource values.
 init_block="$(awk '/name: cdn-rewrite/{f=1} f{print} f&&/volumeMounts:/{exit}' <<<"${out}")"
 check_in_block() {
-  if grep -qF "$2" <<<"$1"; then
+  # Anchor to end-of-line so e.g. 'memory: 128Mi' can't match '1128Mi'.
+  if grep -qE "$2[[:space:]]*$" <<<"$1"; then
     pass "initContainer contains: $2"
   else
     err "initContainer missing: $2"
   fi
 }
+check_in_block "${init_block}" 'cpu: 100m'
 check_in_block "${init_block}" 'cpu: 50m'
 check_in_block "${init_block}" 'memory: 64Mi'
 check_in_block "${init_block}" 'memory: 128Mi'

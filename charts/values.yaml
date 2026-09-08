@@ -61,7 +61,7 @@ cdn:
   assetExtensions: []
   # Commit SHA — injected by CI at chart package time (do not set manually).
   commitSha: ""
-  # Resource limits for the cdn-rewrite initContainer.
+  # Resource requests and limits for the cdn-rewrite initContainer.
   resources:
     limits:
       cpu: 100m
