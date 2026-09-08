@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
-# Verify the cdn-rewrite initContainer renders an immutable CDN URL and that
-# misconfiguration fails fast, so a broken rewrite blocks the rollout instead
-# of deploying hash-less asset URLs.
+# Verify the cdn-rewrite initContainer renders with an immutable CDN URL,
+# conservative resource requests/limits, and the expected readiness probe path,
+# and that misconfiguration fails fast so a broken rewrite blocks the rollout
+# instead of deploying hash-less asset URLs.
 set -euo pipefail
 
 CHART_DIR="${CHART_DIR:-charts}"
@@ -40,6 +41,14 @@ check 'CDN_BASE_URL="https://cdn.example/bcit-ltc"'
 check 'CDN_SHA="abc1234"'
 check 'CDN_URL="${CDN_BASE_URL}/sugar-suite/${CDN_SHA}"'
 check 'rewrite did not inject'
+
+# 2a. Resource requests and limits render for the cdn-rewrite initContainer.
+check 'cpu: 50m'
+check 'memory: 64Mi'
+check 'memory: 128Mi'
+
+# 2b. Readiness probe uses the expected path.
+check 'path: /healthz/ready'
 
 # 3. Enabled but missing commitSha must fail render (required guard).
 if helm template t "${CHART_DIR}" \
