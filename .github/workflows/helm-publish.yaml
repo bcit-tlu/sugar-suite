@@ -16,6 +16,21 @@ permissions:
   id-token: write
 
 jobs:
+  # Resolve the short SHA for the release tag so the stable-history update
+  # can protect the CDN assets this release points to.
+  resolve-stable-sha:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    outputs:
+      short_sha: ${{ steps.sha.outputs.short_sha }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ inputs.tag_name || github.event.release.tag_name }}
+      - id: sha
+        run: echo "short_sha=$(git rev-parse --short HEAD)" >> "$GITHUB_OUTPUT"
+
   # Package, push, and sign the Helm chart for a release tag. The shared
   # workflow parses the tag, checks out the matching ref, and injects the
   # short commit SHA into values.yaml for CDN immutable paths.
@@ -31,3 +46,20 @@ jobs:
       ref: ${{ inputs.tag_name || github.event.release.tag_name }}
       inject_cdn_sha: true
     secrets: inherit
+
+  # Record this release's SHA as a stable CDN asset set, keeping the last N.
+  update-stable-history:
+    needs: [publish, resolve-stable-sha]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: bcit-tlu/.github/.github/actions/cdn-stable-history@main
+        with:
+          cdn_account_name: ${{ vars.CDN_ACCOUNT_NAME }}
+          cdn_container: ${{ vars.CDN_CONTAINER }}
+          cdn_sas_token: ${{ secrets.CDN_SAS_TOKEN }}
+          cdn_namespace: ${{ vars.CDN_NAMESPACE }}
+          repo_name: ${{ github.event.repository.name }}
+          stable_sha: ${{ needs.resolve-stable-sha.outputs.short_sha }}
+          keep_stable: "5"

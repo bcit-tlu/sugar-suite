@@ -10,7 +10,7 @@
 - Helm lint: `helm lint charts/`
 - Helm validate: `helm template test charts/ | kubeconform -strict -summary -schema-location default -ignore-missing-schemas`
 - Verify CDN rewrite initContainer: `bash tests/helm-cdn-rewrite.sh`
-- Rewrite dist/ for CDN upload: `CDN_BASE_URL=... CDN_NAMESPACE=... REPO_NAME=... SHORT_SHA=... ASSET_EXTENSIONS=... bash .github/scripts/cdn-rewrite-dist.sh`
+- Rewrite dist/ for CDN upload: handled by the reusable `bcit-tlu/.github/.github/actions/cdn-rewrite@main` composite action in CI.
 - Use `nix-shell -p {binary}` for ad-hoc tools not in PATH.
   - Preferred form: `nix-shell -p {binary} --run "<command>"`
   - Examples:

@@ -78,6 +78,7 @@ jobs:
     outputs:
       short_sha: ${{ steps.set-sha.outputs.short_sha }}
       asset_extensions: ${{ steps.set-extensions.outputs.asset_extensions }}
+      destination_prefix: ${{ steps.cdn-rewrite.outputs.destination_prefix }}
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-node@v6
@@ -90,14 +91,19 @@ jobs:
       - id: set-extensions
         run: echo "asset_extensions=${ASSET_EXTENSIONS}" >> "$GITHUB_OUTPUT"
 
+      # Rewrites asset URLs and emits destination_prefix (resolved by the
+      # shared cdn-resolve-prefix action) for the cdn-upload job.
       - name: Rewrite asset URLs for CDN upload
-        env:
-          CDN_BASE_URL: ${{ vars.CDN_BASE_URL }}
-          CDN_NAMESPACE: ${{ vars.CDN_NAMESPACE }}
-          REPO_NAME: ${{ github.event.repository.name }}
-          SHORT_SHA: ${{ steps.set-sha.outputs.short_sha }}
-          ASSET_EXTENSIONS: ${{ env.ASSET_EXTENSIONS }}
-        run: bash .github/scripts/cdn-rewrite-dist.sh
+        id: cdn-rewrite
+        uses: bcit-tlu/.github/.github/actions/cdn-rewrite@main
+        with:
+          enabled: "true"
+          cdn_base_url: ${{ vars.CDN_BASE_URL }}
+          cdn_namespace: ${{ vars.CDN_NAMESPACE }}
+          cdn_container: ${{ vars.CDN_CONTAINER }}
+          repo_name: ${{ github.event.repository.name }}
+          short_sha: ${{ steps.set-sha.outputs.short_sha }}
+          asset_extensions: ${{ env.ASSET_EXTENSIONS }}
 
       - uses: actions/upload-artifact@v7
         with:
@@ -113,9 +119,28 @@ jobs:
     with:
       dist_dir: "dist"
       artifact_name: "dist"
-      destination_prefix: ${{ vars.CDN_NAMESPACE }}/${{ github.event.repository.name }}/${{ needs.build-assets.outputs.short_sha }}
+      destination_prefix: ${{ needs.build-assets.outputs.destination_prefix }}
       cdn_account_name: ${{ vars.CDN_ACCOUNT_NAME }}
       cdn_container: ${{ vars.CDN_CONTAINER }}
       asset_extensions: ${{ needs.build-assets.outputs.asset_extensions }}
     secrets:
       CDN_SAS_TOKEN: ${{ secrets.CDN_SAS_TOKEN }}
+
+  # Remove old CDN SHA prefixes, keeping the current latest SHA and the last N
+  # stable SHAs recorded in blob storage.
+  cdn-cleanup:
+    needs: [cdn-upload, build-assets]
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: bcit-tlu/.github/.github/actions/cdn-cleanup@main
+        with:
+          cdn_account_name: ${{ vars.CDN_ACCOUNT_NAME }}
+          cdn_container: ${{ vars.CDN_CONTAINER }}
+          cdn_sas_token: ${{ secrets.CDN_SAS_TOKEN }}
+          cdn_namespace: ${{ vars.CDN_NAMESPACE }}
+          repo_name: ${{ github.event.repository.name }}
+          latest_sha: ${{ needs.build-assets.outputs.short_sha }}
+          keep_stable: "5"
