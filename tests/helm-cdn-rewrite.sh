@@ -61,4 +61,17 @@ else
   pass "missing cdn.baseUrl fails render"
 fi
 
+# 5. Enabled with a schemeless baseUrl must fail render (scheme guard — a
+# schemeless scheme+host gets treated as a relative URL by browsers and
+# corrupts asset paths).
+if helm template t "${CHART_DIR}" \
+  --set cdn.enabled=true \
+  --set cdn.baseUrl=cdn.example.com \
+  --set cdn.commitSha=abc1234 \
+  --set 'cdn.assetExtensions={css,js}' >/dev/null 2>&1; then
+  err "schemeless cdn.baseUrl should fail render"
+else
+  pass "schemeless cdn.baseUrl fails render"
+fi
+
 exit "${fail}"
