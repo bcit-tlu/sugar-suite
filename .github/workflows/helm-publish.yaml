@@ -29,7 +29,8 @@ jobs:
         with:
           ref: ${{ inputs.tag_name || github.event.release.tag_name }}
       - id: sha
-        run: echo "short_sha=$(git rev-parse --short HEAD)" >> "$GITHUB_OUTPUT"
+        # Pin --short=7 to match the CI upload prefix and the chart's cdn.commitSha.
+        run: echo "short_sha=$(git rev-parse --short=7 HEAD)" >> "$GITHUB_OUTPUT"
 
   # Package, push, and sign the Helm chart for a release tag. The shared
   # workflow parses the tag, checks out the matching ref, and injects the

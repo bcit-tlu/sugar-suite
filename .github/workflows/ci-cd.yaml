@@ -87,7 +87,9 @@ jobs:
       - run: npm ci
       - run: npm run build
       - id: set-sha
-        run: echo "short_sha=$(git rev-parse --short HEAD)" >> "$GITHUB_OUTPUT"
+        # Pin --short=7 to match helm-publish's injected cdn.commitSha —
+        # auto-abbrev length varies with clone size and would desync the two.
+        run: echo "short_sha=$(git rev-parse --short=7 HEAD)" >> "$GITHUB_OUTPUT"
       - id: set-extensions
         run: echo "asset_extensions=${ASSET_EXTENSIONS}" >> "$GITHUB_OUTPUT"
 
