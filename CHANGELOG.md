@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.3.5](https://github.com/bcit-tlu/sugar-suite/compare/v1.3.4...v1.3.5) (2026-09-10)
+
+
+### Bug Fixes
+
+* trigger prod and add test case for schemeless cdn.baseUrl validation ([5ad96ec](https://github.com/bcit-tlu/sugar-suite/commit/5ad96ec9b2e6ba13c28535c972dd345f52a062f9))
+
 ## [1.3.4](https://github.com/bcit-tlu/sugar-suite/compare/v1.3.3...v1.3.4) (2026-08-12)
 
 
