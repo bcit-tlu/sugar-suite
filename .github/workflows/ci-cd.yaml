@@ -100,7 +100,6 @@ jobs:
           enabled: "true"
           cdn_base_url: ${{ vars.CDN_BASE_URL }}
           cdn_namespace: ${{ vars.CDN_NAMESPACE }}
-          cdn_container: ${{ vars.CDN_CONTAINER }}
           repo_name: ${{ github.event.repository.name }}
           short_sha: ${{ steps.set-sha.outputs.short_sha }}
           asset_extensions: ${{ env.ASSET_EXTENSIONS }}
