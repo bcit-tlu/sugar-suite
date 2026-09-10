@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
-# Verify the cdn-rewrite initContainer renders an immutable CDN URL and that
-# misconfiguration fails fast, so a broken rewrite blocks the rollout instead
-# of deploying hash-less asset URLs.
+# Verify the cdn-rewrite initContainer renders with an immutable CDN URL,
+# conservative resource requests/limits, and that misconfiguration fails fast
+# so a broken rewrite blocks the rollout instead of deploying hash-less asset URLs.
 set -euo pipefail
 
 CHART_DIR="${CHART_DIR:-charts}"
@@ -40,6 +40,23 @@ check 'CDN_BASE_URL="https://cdn.example/bcit-ltc"'
 check 'CDN_SHA="abc1234"'
 check 'CDN_URL="${CDN_BASE_URL}/sugar-suite/${CDN_SHA}"'
 check 'rewrite did not inject'
+
+# 2a. Resource requests and limits render for the cdn-rewrite initContainer.
+# Extract just the initContainer block so the checks don't match the nginx
+# container's identical resource values.
+init_block="$(awk '/name: cdn-rewrite/{f=1} f{print} f&&/volumeMounts:/{exit}' <<<"${out}")"
+check_in_block() {
+  # Anchor to end-of-line so e.g. 'memory: 128Mi' can't match '1128Mi'.
+  if grep -qE "$2[[:space:]]*$" <<<"$1"; then
+    pass "initContainer contains: $2"
+  else
+    err "initContainer missing: $2"
+  fi
+}
+check_in_block "${init_block}" 'cpu: 100m'
+check_in_block "${init_block}" 'cpu: 50m'
+check_in_block "${init_block}" 'memory: 64Mi'
+check_in_block "${init_block}" 'memory: 128Mi'
 
 # 3. Enabled but missing commitSha must fail render (required guard).
 if helm template t "${CHART_DIR}" \

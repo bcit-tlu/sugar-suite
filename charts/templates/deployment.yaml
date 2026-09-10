@@ -239,6 +239,10 @@ spec:
               fi
 
               echo "CDN rewrite complete."
+          {{- with .Values.cdn.resources }}
+          resources:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
           volumeMounts:
             - name: html
               mountPath: /html
