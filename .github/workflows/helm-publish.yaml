@@ -58,9 +58,6 @@ jobs:
       - uses: bcit-tlu/.github/.github/actions/cdn-stable-history@main
         with:
           cdn_account_name: ${{ vars.CDN_ACCOUNT_NAME }}
-          cdn_container: ${{ vars.CDN_CONTAINER }}
           cdn_sas_token: ${{ secrets.CDN_SAS_TOKEN }}
-          cdn_namespace: ${{ vars.CDN_NAMESPACE }}
           repo_name: ${{ github.event.repository.name }}
           stable_sha: ${{ needs.resolve-stable-sha.outputs.short_sha }}
-          keep_stable: "5"

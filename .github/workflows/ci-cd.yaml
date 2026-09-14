@@ -101,7 +101,6 @@ jobs:
         with:
           enabled: "true"
           cdn_base_url: ${{ vars.CDN_BASE_URL }}
-          cdn_namespace: ${{ vars.CDN_NAMESPACE }}
           repo_name: ${{ github.event.repository.name }}
           short_sha: ${{ steps.set-sha.outputs.short_sha }}
           asset_extensions: ${{ env.ASSET_EXTENSIONS }}
@@ -122,13 +121,13 @@ jobs:
       artifact_name: "dist"
       destination_prefix: ${{ needs.build-assets.outputs.destination_prefix }}
       cdn_account_name: ${{ vars.CDN_ACCOUNT_NAME }}
-      cdn_container: ${{ vars.CDN_CONTAINER }}
+      repo_name: ${{ github.event.repository.name }}
       asset_extensions: ${{ needs.build-assets.outputs.asset_extensions }}
     secrets:
       CDN_SAS_TOKEN: ${{ secrets.CDN_SAS_TOKEN }}
 
-  # Remove old CDN SHA prefixes, keeping the current latest SHA and the last N
-  # stable SHAs recorded in blob storage.
+  # Remove old CDN SHA prefixes. Protected SHAs are tracked in
+  # .latest-current, .latest-history, .stable-current, and .stable-history.
   cdn-cleanup:
     needs: [cdn-upload, build-assets]
     if: github.event_name != 'pull_request'
@@ -139,9 +138,6 @@ jobs:
       - uses: bcit-tlu/.github/.github/actions/cdn-cleanup@main
         with:
           cdn_account_name: ${{ vars.CDN_ACCOUNT_NAME }}
-          cdn_container: ${{ vars.CDN_CONTAINER }}
           cdn_sas_token: ${{ secrets.CDN_SAS_TOKEN }}
-          cdn_namespace: ${{ vars.CDN_NAMESPACE }}
           repo_name: ${{ github.event.repository.name }}
           latest_sha: ${{ needs.build-assets.outputs.short_sha }}
-          keep_stable: "5"
