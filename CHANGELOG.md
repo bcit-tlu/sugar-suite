@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.3.6](https://github.com/bcit-tlu/sugar-suite/compare/v1.3.5...v1.3.6) (2026-09-16)
+
+
+### Bug Fixes
+
+* add resource limits to cdn-rewrite initContainer ([#101](https://github.com/bcit-tlu/sugar-suite/issues/101)) ([c008150](https://github.com/bcit-tlu/sugar-suite/commit/c008150cbd1c338d01cf8a7de3f61193429de28b))
+
 ## [1.3.5](https://github.com/bcit-tlu/sugar-suite/compare/v1.3.4...v1.3.5) (2026-09-10)
 
 
