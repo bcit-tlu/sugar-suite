@@ -91,4 +91,52 @@ else
   pass "schemeless cdn.baseUrl fails render"
 fi
 
+# 6. Behavioural: run the rendered initContainer script against a fixture dist
+# containing quoted AND unquoted HTML asset attributes (minified production
+# output) and verify every relative reference is rewritten.
+if command -v yq >/dev/null 2>&1; then
+  tmp="$(mktemp -d)"
+  trap 'rm -rf "${tmp}"' EXIT
+
+  helm template t "${CHART_DIR}" \
+    --set cdn.enabled=true \
+    --set cdn.baseUrl=https://cdn.example/bcit-ltc \
+    --set cdn.commitSha=abc1234 \
+    --set 'cdn.assetExtensions={css,js,ico,png}' \
+    --show-only templates/deployment.yaml \
+    | yq -r '.spec.template.spec.initContainers[0].args[0]' > "${tmp}/rewrite.sh"
+
+  # Retarget absolute container paths into the temp dir: the source dist first
+  # (it contains /html as a substring), then the shared /html volume.
+  sed -i "s#/usr/share/nginx/html#${tmp}/src#g" "${tmp}/rewrite.sh"
+  sed -i "s#/html#${tmp}/html#g" "${tmp}/rewrite.sh"
+
+  mkdir -p "${tmp}/src" "${tmp}/html"
+  cat > "${tmp}/src/index.html" <<'EOF'
+<!doctype html><html lang=en><head><link rel=icon type=image/x-icon href=/favicon.ico><title>t</title><script defer src=main_bundle.js></script><link rel="stylesheet" href="./style.css"></head><body><img src='/bcit_rev.png'><a href="https://example.org/x.png">ext</a></body></html>
+EOF
+  echo 'const a="/bcit_rev.png";' > "${tmp}/src/main_bundle.js"
+  echo 'body{background:url(/bcit_rev.png)}' > "${tmp}/src/style.css"
+
+  sh "${tmp}/rewrite.sh"
+
+  check_file() {
+    if grep -qF "$2" "$1"; then
+      pass "$(basename "$1") contains: $2"
+    else
+      err "$(basename "$1") missing: $2"
+    fi
+  }
+
+  check_file "${tmp}/html/index.html" 'href="https://cdn.example/bcit-ltc/sugar-suite/abc1234/favicon.ico"'
+  check_file "${tmp}/html/index.html" 'src="https://cdn.example/bcit-ltc/sugar-suite/abc1234/main_bundle.js"'
+  check_file "${tmp}/html/index.html" 'href="https://cdn.example/bcit-ltc/sugar-suite/abc1234/style.css"'
+  check_file "${tmp}/html/index.html" "src='https://cdn.example/bcit-ltc/sugar-suite/abc1234/bcit_rev.png'"
+  check_file "${tmp}/html/index.html" 'href="https://example.org/x.png"'
+  check_file "${tmp}/html/main_bundle.js" '"https://cdn.example/bcit-ltc/sugar-suite/abc1234/bcit_rev.png"'
+  check_file "${tmp}/html/style.css" 'url(https://cdn.example/bcit-ltc/sugar-suite/abc1234/bcit_rev.png)'
+else
+  err "yq required for behavioural test"
+fi
+
 exit "${fail}"

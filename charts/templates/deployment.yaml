@@ -96,9 +96,10 @@ spec:
                     return join q{/}, @out;
                   };
 
-                  my $pat = qr{(src|href|data-src)=(["\x27])([^"\x27]+\.(?:$exts)(?:[#?][^"\x27]*)?)\2}i;
+                  my $pat = qr{(src|href|data-src)\s*=\s*(?:(["\x27])([^"\x27]+\.(?:$exts)(?:[#?][^"\x27]*)?)\2|([^\s"\x27=<>`]+\.(?:$exts)(?:[#?][^\s"\x27<>`]*)?))}i;
                   s{$pat}{
-                    my ($attr, $q, $path) = ($1, $2, $3);
+                    my ($attr, $q, $path) = ($1, $2, defined $3 ? $3 : $4);
+                    $q = q{"} unless defined $q;
                     $path =~ s{^\s+|\s+$}{}g;
                     if ($path =~ m{://} || ($cdn ne q{} && index($path, $cdn) == 0) || $path =~ m{^(?:[a-zA-Z][a-zA-Z0-9+.+-]*:|//)}) {
                       "$attr=$q$path$q";
@@ -226,7 +227,7 @@ spec:
               # Verify the rewrite actually injected the immutable CDN URL into
               # files that contain asset references. Vendor files that reference
               # no assets do not need rewriting, so skip them.
-              asset_ref_regex="\.(${EXT_PATTERN})([#?][^\"'\)]*)?([\"'\)]|$)"
+              asset_ref_regex="\.(${EXT_PATTERN})([#?][^\"'\)>[:space:]]*)?([\"'\)>[:space:]]|$)"
               missing_files=$(find /html -type f \( -name '*.html' -o -name '*.css' -o -name '*.js' \) | while read -r f; do
                 if grep -qE "${asset_ref_regex}" "$f" && ! grep -qF "${CDN_URL}/" "$f"; then
                   printf '%s\n' "$f"
