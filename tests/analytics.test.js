@@ -128,17 +128,22 @@ describe('OTel analytics (local dev)', () => {
       'raw https://x.example/a?token="s12" end',
       "single 'https://x.example/a?token=\"s13\"' end",
       'double "https://x.example/a?token="s14"" end',
+      'ambiguous "https://x.example/a?t="s15",s16" end',
+      'digits https://x.example/a?t=s17:12 end',
+      'pair (https://x.example/a?t=s18:12:34)',
     ].join(' ');
     const error = new Error(message);
     error.stack = 'Error: ' + message +
-      '\n    at f (https://cdn.example/sugar-suite/abc/js/lat.js?t=a)s7:1:2)';
+      '\n    at f (https://cdn.example/sugar-suite/abc/js/lat.js?t=a)s7:1:2)' +
+      '\n    at async h (https://cdn.example/sugar-suite/abc/js/lat.js?t=s20:12:34:5:6)' +
+      '\ng@https://cdn.example/sugar-suite/abc/js/lat.js?t=s19:12:7:8';
     window.dispatchEvent(new ErrorEvent('error', { error }));
     await flush();
 
     const expected = [
       'Failed to load "https://x.example/a.json".',
-      '{"u":"https://x.example/a","v":2}',
-      "['https://x.example/a','https://y.example/b']",
+      '{"u":"https://x.example/a}',
+      "['https://x.example/a']",
       '<https://x.example/a>',
       'see https://x.example/a)b',
       'Failed (https://x.example/a).',
@@ -148,11 +153,16 @@ describe('OTel analytics (local dev)', () => {
       'raw https://x.example/a" end',
       "single 'https://x.example/a\"' end",
       'double "https://x.example/a"" end',
+      'ambiguous "https://x.example/a" end',
+      'digits https://x.example/a end',
+      'pair (https://x.example/a)',
     ].join(' ');
     const attrs = records[0].attributes;
     expect(attrs['exception.message']).toBe(expected);
     expect(attrs['exception.stacktrace']).toBe('Error: ' + expected +
-      '\n    at f (https://cdn.example/sugar-suite/abc/js/lat.js:1:2)');
+      '\n    at f (https://cdn.example/sugar-suite/abc/js/lat.js:1:2)' +
+      '\n    at async h (https://cdn.example/sugar-suite/abc/js/lat.js:5:6)' +
+      '\ng@https://cdn.example/sugar-suite/abc/js/lat.js:7:8');
   });
 
   test('drops exceptions raised by the host page', async () => {

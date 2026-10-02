@@ -80,32 +80,30 @@ function getCommonAttributes() {
   };
 }
 
-// Strip query/fragment from every URL in free text. Developer-written URLs can
-// hold raw quotes (?token="x"), so an unquoted query runs to whitespace; a URL
-// opened by a quote or < ends at its closer when outer text follows. A trailing
-// :line:col stack position and closing/punctuation characters are kept
-var URL_WITH_QUERY = /(["'`<]?)(\b[a-z][\w+.-]*:\/\/[^\s?#]*)([?#]\S*)/gi;
-var CLOSER_END = /^[\s.,;:!?)\]}>]?$/;
-var KEPT_SUFFIX = /((?::\d+){1,2})?([)\]}>"'`]*[.,;:!?]*)$/;
+// Strip query/fragment from every URL in free text. Any character but
+// whitespace may belong to a developer-written query (?token="x"), so the
+// query always runs to whitespace; only trailing closing/punctuation
+// characters are kept, plus :line:col (optional `)`) on stack frame lines
+var URL_WITH_QUERY = /(\b[a-z][\w+.-]*:\/\/[^\s?#]*)([?#]\S*)/gi;
+var POSITION_SUFFIX = /:\d+:\d+\)?$/;
+var TEXT_SUFFIX = /[)\]}>"'`]*[.,;:!?]*$/;
+// Chrome `    at f (url:1:2)`; Firefox/Safari `f@url:1:2`
+var FRAME_LINE = /^\s+at\s|^[^\s@]*@/;
 
-function stripUrlQueries(text) {
+function stripUrlQueries(text, keepPosition) {
   if (typeof text !== 'string') {
     return text;
   }
-  return text.replace(URL_WITH_QUERY, function (match, open, base, rest) {
-    var close = open === '<' ? '>' : open;
-    var end = rest.length;
-    if (close && base.indexOf(close) === -1) {
-      for (var i = rest.indexOf(close); i !== -1; i = rest.indexOf(close, i + 1)) {
-        if (CLOSER_END.test(rest.charAt(i + 1))) {
-          end = i;
-          break;
-        }
-      }
-    }
-    var suffix = rest.slice(0, end).match(KEPT_SUFFIX);
-    return open + base + (suffix[1] || '') + suffix[2] + stripUrlQueries(rest.slice(end));
+  return text.replace(URL_WITH_QUERY, function (match, base, query) {
+    return base + ((keepPosition && query.match(POSITION_SUFFIX)) || query.match(TEXT_SUFFIX))[0];
   });
+}
+
+// Message lines at the top of a stack never carry real positions
+function stripStackQueries(stack) {
+  return stack.split('\n').map(function (line) {
+    return stripUrlQueries(line, FRAME_LINE.test(line));
+  }).join('\n');
 }
 
 // ErrorsInstrumentation listens on window, so drop exceptions raised by the
@@ -119,7 +117,7 @@ function sugarSuiteErrorsOnly(processor) {
           return;
         }
         // Script URLs and messages can carry tokens; records are mutable during onEmit
-        record.setAttribute('exception.stacktrace', stripUrlQueries(stack));
+        record.setAttribute('exception.stacktrace', stripStackQueries(stack));
         record.setAttribute('exception.message', stripUrlQueries(record.attributes['exception.message']));
       }
       processor.onEmit(record, context);
