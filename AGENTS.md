@@ -10,7 +10,7 @@
 - Helm lint: `helm lint charts/`
 - Helm validate: `helm template test charts/ | kubeconform -strict -summary -schema-location default -ignore-missing-schemas`
 - Verify CDN rewrite initContainer: `bash tests/helm-cdn-rewrite.sh`
-- Rewrite dist/ for CDN upload: handled by the reusable `bcit-tlu/.github/.github/actions/cdn-rewrite@main` composite action in CI.
+- Verify dist/ is host-agnostic for CDN upload: handled by the reusable `bcit-tlu/.github/.github/actions/cdn-verify@main` composite action in CI (no upload-side rewrite — promotion is a server-side copy).
 - Use `nix-shell -p {binary}` for ad-hoc tools not in PATH.
   - Preferred form: `nix-shell -p {binary} --run "<command>"`
   - Examples:
@@ -49,14 +49,20 @@
 
 ### Workflow map
 
-- `ci-cd.yaml` — push/PR to `main`: shared `helm-lint.yaml`, reusable OCI build, RC Helm chart publish from `main` via shared `helm-publish.yaml`
+- `ci-cd.yaml` — push/PR to `main`: shared `helm-lint.yaml`, reusable OCI build, RC Helm chart publish from `main` via shared `helm-publish.yaml`; verifies dist/ is host-agnostic, uploads it verbatim to the repo container on the latest CDN account (`CDN_ACCOUNT_NAME_LATEST`, communal) under the dist content-hash prefix, writes the `.by-commit/<sha>` lookup, then prunes old latest refs
 - `pr-title-lint.yaml` — thin caller of shared `bcit-tlu/.github` `pr-title-lint.yaml`; enforces Conventional Commit PR titles
 - `release-please.yaml` — thin caller of shared `bcit-tlu/.github` `release-please.yaml`; runs release-please on `main`, guards stale `release-as` pins, dispatches `helm-publish.yaml`/`release-retag.yaml`
-- `helm-publish.yaml` — thin caller of shared `bcit-tlu/.github` `helm-publish.yaml`; publishes signed Helm chart for release tags (`vX.Y.Z`) or manual dispatch
+- `helm-publish.yaml` — thin caller of shared `bcit-tlu/.github` `helm-publish.yaml`; publishes signed Helm chart for release tags (`vX.Y.Z`) or manual dispatch, resolves the tag's commit to a content ref via `.by-commit/<sha>` and server-side copies the prefix latest→stable (`cdn-promote`, `CDN_ACCOUNT_NAME_STABLE`, dedicated `sugarsuitestable`), updates `.stable-current`/`.stable-history`, and prunes old stable refs
 - `release-retag.yaml` — thin caller of shared `bcit-tlu/.github` `release-retag.yaml`; retags `sha-<commit>` image to semver + optional `latest` (highest stable only), then signs
 - `renovate.yaml` — thin caller of shared `bcit-tlu/.github` `renovate.yaml`; runs self-hosted Renovate on a weekday schedule
 
-Reusable workflows live in `bcit-tlu/.github/.github/workflows/`: `oci-build.yaml`, `cdn-upload.yaml`, `helm-lint.yaml`, `helm-publish.yaml`, `pr-title-lint.yaml`, `release-please.yaml`, `release-retag.yaml`, `renovate.yaml`.
+Reusable workflows live in `bcit-tlu/.github/.github/workflows/`: `oci-build.yaml`, `cdn-build-assets.yaml`, `cdn-upload.yaml`, `helm-lint.yaml`, `helm-publish.yaml`, `pr-title-lint.yaml`, `release-please.yaml`, `release-retag.yaml`, `renovate.yaml`.
+
+### CDN channel isolation
+
+- Latest and stable are separate **storage accounts**, not containers — the channel boundary is at the account level so a latest-scoped credential can never address stable
+- Containers are always `<repo>`; the channel is selected by `CDN_ACCOUNT_NAME_{LATEST,STABLE}` + OIDC (`AZURE_CLIENT_ID_{LATEST,STABLE}` via the `latest`/`stable` GitHub Environments, UAMI scoped to the repo's container) + `CDN_BASE_URL_{LATEST,STABLE}` (per-env Front Door endpoint hostnames)
+- Public path is `/<repo>/<ref>/` on both endpoints — identical shape, different host; `<ref>` is the content hash of the uploaded file set, and release promotion is a server-side blob copy of that prefix (the `stable` UAMI has Blob Data Reader on the repo's latest container)
 
 ### Release/versioning
 
