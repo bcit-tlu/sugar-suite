@@ -8,6 +8,7 @@ import autoprefixer from 'autoprefixer'; // css vendor prefixing
 import cssnano from 'cssnano'; // css minification and optimization
 import { compression } from 'vite-plugin-compression2'; // gzip/brotli compression (vite 8 + windows-safe)
 import { minify } from 'terser'; // javascript minification
+import esbuild from 'esbuild'; // bundler for analytics IIFE
 
 const __dirname = resolve(fileURLToPath(import.meta.url), '..'); // get current directory
 
@@ -28,6 +29,22 @@ export default defineConfig({
         });
       },
       async generateBundle() { // runs during bundle generation
+        // bundle OTel analytics IIFE via esbuild (prepended to lat.js so every
+        // page that loads sugar-suite reports; init is try/catch-guarded)
+        const analyticsResult = await esbuild.build({
+          entryPoints: [resolve(__dirname, 'source/js/analytics/init.js')],
+          bundle: true,
+          format: 'iife',
+          minify: true,
+          target: 'es2020',
+          define: { 'process.env.NODE_ENV': '"production"' },
+          sourcemap: 'external',
+          outfile: resolve(__dirname, 'dist/js/lat.js'), // map sources resolve relative to js/lat.js.map
+          write: false,
+        });
+        const analyticsIIFE = analyticsResult.outputFiles.find(f => f.path.endsWith('.js')).text;
+        const analyticsMap = JSON.parse(analyticsResult.outputFiles.find(f => f.path.endsWith('.map')).text);
+
         // process main js features (equivalent to gulp's scripts task)
         const mainJsContent = getModuleContent('source/js/features'); // get concatenated js content
 
@@ -71,7 +88,7 @@ export default defineConfig({
         this.emitFile({ // emit the file to output
           type: 'asset', // file type
           fileName: 'js/lat.js', // output filename
-          source: minifiedMainJs.code + '\n//# sourceMappingURL=lat.js.map' // sibling .map reference
+          source: analyticsIIFE + '\n' + minifiedMainJs.code + '\n//# sourceMappingURL=lat.js.map' // analytics IIFE + features + .map reference
         });
 
         // process experimental js (equivalent to gulp's experimental task)
@@ -121,7 +138,18 @@ export default defineConfig({
         });
 
         // generate source maps for JS files
-        const mainSourceMap = generateSourceMap('source/js/features', 'js/lat.js');
+        // index map: analytics IIFE section first, features offset by its line count
+        const mainSourceMap = {
+          version: 3,
+          file: 'js/lat.js',
+          sections: [
+            { offset: { line: 0, column: 0 }, map: analyticsMap },
+            {
+              offset: { line: (analyticsIIFE + '\n').split('\n').length - 1, column: 0 },
+              map: generateSourceMap('source/js/features', 'js/lat.js')
+            }
+          ]
+        };
         this.emitFile({
           type: 'asset',
           fileName: 'js/lat.js.map',
@@ -410,15 +438,17 @@ function generateSourceMap(sourceDir, outputFile) {
 
   const sources = []; // initialize sources array
   const sourcesContent = []; // initialize sources content array
+  // sources resolve relative to the emitted map (dist/<outputFile dir>)
+  const toMapRelative = file => path.relative(path.join('dist', path.dirname(outputFile)), file).replace(/\\/g, '/');
 
   // add jquery source if this is the main features bundle
   if (sourceDir === 'source/js/features') { // if main features directory
-    sources.push('public/js/vendor/jquery-4.0.0.min.js'); // add jquery source
+    sources.push(toMapRelative('public/js/vendor/jquery-4.0.0.min.js')); // add jquery source
     sourcesContent.push(fs.readFileSync('public/js/vendor/jquery-4.0.0.min.js', 'utf8')); // add jquery content
   }
 
   jsFiles.forEach(file => { // iterate through js files
-    sources.push(file.replace(/\\/g, '/')); // normalize paths for source map
+    sources.push(toMapRelative(file)); // normalize paths for source map
     sourcesContent.push(fs.readFileSync(file, 'utf8')); // read source file contents
   });
 

@@ -115,6 +115,13 @@
             e.preventDefault();
             var $form = $(this);
 
+            if (window.otelAnalytics && window.otelAnalytics.trackEvent) {
+                var kcIndex = $(".knowledge-check, .self-test").index($form.closest(".knowledge-check, .self-test"));
+                window.otelAnalytics.trackEvent('knowledge_check_submit', {
+                    'question_index': String(kcIndex),
+                    'question_type': 'mixed',
+                });
+            }
 
             assessInputs();
             reassessment();
@@ -124,6 +131,17 @@
                 showScore();
             }
             showFeedback();
+
+            if (window.otelAnalytics && window.otelAnalytics.trackEvent) {
+                var numCorrect = $form.find(".correct").length;
+                var numIncorrect = $form.find(".incorrect").length;
+                var kcIdx = $(".knowledge-check, .self-test").index($form.closest(".knowledge-check, .self-test"));
+                window.otelAnalytics.trackEvent('knowledge_check_result', {
+                    'question_index': String(kcIdx),
+                    'is_correct': String(numIncorrect === 0),
+                    'attempts': '1',
+                });
+            }
 
             function assessInputs() {
                 $form.find("input, select").trigger("assess");
