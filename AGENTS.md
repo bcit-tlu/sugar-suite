@@ -28,6 +28,7 @@
 
 - `/source/scss` — SCSS source (variables, mixins, partials)
 - `/source/js` — JavaScript feature modules (jQuery-based)
+- `/source/js/analytics` — OTel browser analytics (logs only); esbuild IIFE prepended to `lat.js`, exports to the flux-fleet public collector `https://telemetry.ltc.bcit.ca/v1/logs`; `service.name=sugar-suite` must stay in the collector's `transform/analytics-scope` allowlist
 - `/source/experimental` — Experimental SCSS/JS features
 - `/public` — Static assets served by nginx
 - `/charts` — Helm chart for Kubernetes deployment (flat layout)

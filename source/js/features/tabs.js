@@ -59,6 +59,13 @@
         $tabNav.children("li").on("click", function (e) {
             e.preventDefault();
             let idx = $(this).index();
+            if (window.otelAnalytics && window.otelAnalytics.trackEvent) {
+                window.otelAnalytics.trackEvent('tab_switch', {
+                    'tab_label': $(this).find("button").text().trim(),
+                    'tab_index': String(idx),
+                    'total_tabs': String($tabNav.children("li").length),
+                });
+            }
             $(this).siblings(".selected").removeClass("selected");
             $(this).addClass("selected");
             $tabContents.filter(".active").hide().removeClass("active");

@@ -108,8 +108,9 @@ if command -v yq >/dev/null 2>&1; then
 
   # Retarget absolute container paths into the temp dir: the source dist first
   # (it contains /html as a substring), then the shared /html volume.
-  sed -i "s#/usr/share/nginx/html#${tmp}/src#g" "${tmp}/rewrite.sh"
-  sed -i "s#/html#${tmp}/html#g" "${tmp}/rewrite.sh"
+  # Portable in-place edit (BSD/macOS sed requires a -i suffix argument)
+  sed -e "s#/usr/share/nginx/html#${tmp}/src#g" -e "s#/html#${tmp}/html#g" \
+    "${tmp}/rewrite.sh" > "${tmp}/rewrite.sh.new" && mv "${tmp}/rewrite.sh.new" "${tmp}/rewrite.sh"
 
   mkdir -p "${tmp}/src" "${tmp}/html"
   cat > "${tmp}/src/index.html" <<'EOF'

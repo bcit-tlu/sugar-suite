@@ -50,6 +50,13 @@
 				}
                 $(this).removeClass("open").attr("aria-pressed", "false");
 				$bellow.trigger("close");
+				if (window.otelAnalytics && window.otelAnalytics.trackEvent) {
+					window.otelAnalytics.trackEvent('accordion_toggle', {
+						'action': 'close',
+						'section_title': $(this).text().trim(),
+						'accordion_index': String($(".accordion-button").index(this)),
+					});
+				}
 			}
 			if(!isOpen) {
 				if(isCollapsing && !isToggle) {
@@ -58,6 +65,13 @@
                 
 				$(this).addClass("open").attr("aria-pressed", "true");
 				$bellow.trigger("open");
+				if (window.otelAnalytics && window.otelAnalytics.trackEvent) {
+					window.otelAnalytics.trackEvent('accordion_toggle', {
+						'action': 'open',
+						'section_title': $(this).text().trim(),
+						'accordion_index': String($(".accordion-button").index(this)),
+					});
+				}
 			}
 		}
 	});
