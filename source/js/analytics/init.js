@@ -50,16 +50,16 @@ function isLocal() {
 
 // Browser-wide session ID (localStorage, shared across tabs/reloads); falls
 // back to in-memory if storage is blocked. Re-read on every call so tabs that
-// raced on first load converge on the last-written value
+// raced on first load converge on the last-written value. A missing key
+// (first load or cleared storage) always starts a fresh session
 function getSessionId() {
   try {
     var stored = localStorage.getItem(SESSION_KEY);
-    if (stored) {
-      _sessionId = stored;
-    } else {
-      _sessionId = _sessionId || crypto.randomUUID();
-      localStorage.setItem(SESSION_KEY, _sessionId);
+    if (!stored) {
+      stored = crypto.randomUUID();
+      localStorage.setItem(SESSION_KEY, stored);
     }
+    _sessionId = stored;
   } catch (e) {
     _sessionId = _sessionId || 'no-storage';
   }

@@ -66,6 +66,20 @@ describe('OTel analytics (local dev)', () => {
     expect(records[0].attributes['session.id']).toBe('other-tab-id');
   });
 
+  test('starts a new session when storage is cleared', async () => {
+    window.otelAnalytics.trackEvent('tab_switch');
+    const oldId = localStorage.getItem('otel_session_id');
+    localStorage.clear();
+    window.otelAnalytics.trackEvent('tab_switch');
+    await flush();
+
+    const newId = records[1].attributes['session.id'];
+    expect(records[0].attributes['session.id']).toBe(oldId);
+    expect(newId).toBeTruthy();
+    expect(newId).not.toBe(oldId);
+    expect(localStorage.getItem('otel_session_id')).toBe(newId);
+  });
+
   test('keeps exceptions with a sugar-suite stack frame', async () => {
     window.dispatchEvent(new ErrorEvent('error', {
       error: sourceError('https://cdn.example/sugar-suite/abc1234/js/lat.js'),
