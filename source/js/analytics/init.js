@@ -49,19 +49,19 @@ function isLocal() {
 }
 
 // Browser-wide session ID (localStorage, shared across tabs/reloads); falls
-// back to in-memory if storage is blocked
+// back to in-memory if storage is blocked. Re-read on every call so tabs that
+// raced on first load converge on the last-written value
 function getSessionId() {
-  if (_sessionId) {
-    return _sessionId;
-  }
   try {
-    _sessionId = localStorage.getItem(SESSION_KEY);
-    if (!_sessionId) {
-      _sessionId = crypto.randomUUID();
+    var stored = localStorage.getItem(SESSION_KEY);
+    if (stored) {
+      _sessionId = stored;
+    } else {
+      _sessionId = _sessionId || crypto.randomUUID();
       localStorage.setItem(SESSION_KEY, _sessionId);
     }
   } catch (e) {
-    _sessionId = 'no-storage';
+    _sessionId = _sessionId || 'no-storage';
   }
   return _sessionId;
 }
