@@ -78,6 +78,28 @@ describe('OTel analytics (local dev)', () => {
     expect(records.map((r) => r.eventName)).toEqual(['exception', 'exception']);
   });
 
+  test('strips URL query strings and fragments from exception stack and message', async () => {
+    const error = new Error('load failed https://cdn.example/x.json?sig=s3cret#a');
+    error.stack = [
+      'Error: load failed https://cdn.example/x.json?sig=s3cret#a',
+      '    at f (https://cdn.example/sugar-suite/abc/js/lat.js?token=t0k:1:2)',
+      '    at https://cdn.example/sugar-suite/abc/js/lat.js?t=a:5#frag:3:4',
+      'g@https://cdn.example/sugar-suite/abc/js/lat.js?token=t0k:7:8',
+    ].join('\n');
+    window.dispatchEvent(new ErrorEvent('error', { error }));
+    await flush();
+
+    expect(records).toHaveLength(1);
+    const attrs = records[0].attributes;
+    expect(attrs['exception.stacktrace']).toBe([
+      'Error: load failed https://cdn.example/x.json',
+      '    at f (https://cdn.example/sugar-suite/abc/js/lat.js:1:2)',
+      '    at https://cdn.example/sugar-suite/abc/js/lat.js:3:4',
+      'g@https://cdn.example/sugar-suite/abc/js/lat.js:7:8',
+    ].join('\n'));
+    expect(attrs['exception.message']).toBe('load failed https://cdn.example/x.json');
+  });
+
   test('drops exceptions raised by the host page', async () => {
     window.dispatchEvent(new ErrorEvent('error', {
       error: sourceError('https://learn.bcit.ca/d2l/lp/navbars/main.js'),

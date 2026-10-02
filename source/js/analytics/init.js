@@ -80,6 +80,14 @@ function getCommonAttributes() {
   };
 }
 
+// Strip query/fragment from every URL in free text, keeping a trailing
+// :line:col stack position
+var URL_QUERY = /(\b[a-z][\w+.-]*:\/\/[^\s?#)]*)[?#][^\s)]*?((?::\d+){1,2})?(?=[\s)]|$)/gim;
+
+function stripUrlQueries(text) {
+  return typeof text === 'string' ? text.replace(URL_QUERY, '$1$2') : text;
+}
+
 // ErrorsInstrumentation listens on window, so drop exceptions raised by the
 // host page (D2L) and keep only those with a sugar-suite stack frame
 function sugarSuiteErrorsOnly(processor) {
@@ -90,6 +98,9 @@ function sugarSuiteErrorsOnly(processor) {
         if (typeof stack !== 'string' || !SUGAR_SUITE_FRAME.test(stack)) {
           return;
         }
+        // Script URLs and messages can carry tokens; records are mutable during onEmit
+        record.setAttribute('exception.stacktrace', stripUrlQueries(stack));
+        record.setAttribute('exception.message', stripUrlQueries(record.attributes['exception.message']));
       }
       processor.onEmit(record, context);
     },
