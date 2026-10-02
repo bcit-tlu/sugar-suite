@@ -81,10 +81,11 @@ function getCommonAttributes() {
 }
 
 // Strip query/fragment from every URL in free text, keeping a trailing
-// :line:col stack position and closing paren. URLs end only at characters
-// browsers always percent-encode (whitespace " ' < > `); `)` and `,` are
-// legal inside URLs, so they never end one
-var URL_QUERY = /(\b[a-z][\w+.-]*:\/\/[^\s?#"'<>`]*)[?#][^\s"'<>`]*?((?::\d+){1,2})?(?=\)?(?:[\s"'<>`]|$))/gim;
+// :line:col stack position and trailing `)`/punctuation. URLs end only at
+// characters browsers always percent-encode (whitespace " ' < > `); `)` and
+// punctuation are legal inside URLs, so they end one only when a hard
+// delimiter follows
+var URL_QUERY = /(\b[a-z][\w+.-]*:\/\/[^\s?#"'<>`]*)[?#][^\s"'<>`]*?((?::\d+){1,2})?(?=\)?[.,;:!?]*(?:[\s"'<>`]|$))/gim;
 
 function stripUrlQueries(text) {
   return typeof text === 'string' ? text.replace(URL_QUERY, '$1$2') : text;

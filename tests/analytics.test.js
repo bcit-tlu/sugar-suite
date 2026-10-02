@@ -121,6 +121,10 @@ describe('OTel analytics (local dev)', () => {
       "['https://x.example/a?t=s3','https://y.example/b?k=s4']",
       '<https://x.example/a?t=s5>',
       'see https://x.example/a)b?t=s6',
+      'Failed (https://x.example/a?t=s8).',
+      'bad https://x.example/a?t=s9, retrying',
+      'ids https://x.example/a?ids=1,2&sig=s10 end',
+      'paren https://x.example/a?t=a).s11 end',
     ].join(' ');
     const error = new Error(message);
     error.stack = 'Error: ' + message +
@@ -134,6 +138,10 @@ describe('OTel analytics (local dev)', () => {
       "['https://x.example/a','https://y.example/b']",
       '<https://x.example/a>',
       'see https://x.example/a)b',
+      'Failed (https://x.example/a).',
+      'bad https://x.example/a, retrying',
+      'ids https://x.example/a end',
+      'paren https://x.example/a end',
     ].join(' ');
     const attrs = records[0].attributes;
     expect(attrs['exception.message']).toBe(expected);
