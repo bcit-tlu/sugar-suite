@@ -106,15 +106,15 @@ describe('OTel analytics (local dev)', () => {
     expect(records).toHaveLength(1);
     const attrs = records[0].attributes;
     expect(attrs['exception.stacktrace']).toBe([
-      'Error: load failed https://cdn.example/x.json',
-      '    at f (https://cdn.example/sugar-suite/abc/js/lat.js:1:2)',
-      '    at https://cdn.example/sugar-suite/abc/js/lat.js:3:4',
-      'g@https://cdn.example/sugar-suite/abc/js/lat.js:7:8',
+      'Error: load failed https://cdn.example/x.json?REDACTED',
+      '    at f (https://cdn.example/sugar-suite/abc/js/lat.js?REDACTED:1:2)',
+      '    at https://cdn.example/sugar-suite/abc/js/lat.js?REDACTED:3:4',
+      'g@https://cdn.example/sugar-suite/abc/js/lat.js?REDACTED:7:8',
     ].join('\n'));
-    expect(attrs['exception.message']).toBe('load failed https://cdn.example/x.json');
+    expect(attrs['exception.message']).toBe('load failed https://cdn.example/x.json?REDACTED');
   });
 
-  test('strips queries from quoted URLs and URLs containing parentheses', async () => {
+  test('redacts queries from quoted URLs and URLs containing parentheses', async () => {
     const message = [
       'Failed to load "https://x.example/a.json?sig=s1".',
       '{"u":"https://x.example/a?t=s2","v":2}',
@@ -131,6 +131,8 @@ describe('OTel analytics (local dev)', () => {
       'ambiguous "https://x.example/a?t="s15",s16" end',
       'digits https://x.example/a?t=s17:12 end',
       'pair (https://x.example/a?t=s18:12:34)',
+      'frag https://x.example/a#s21 end',
+      'empty https://x.example/a? end',
     ].join(' ');
     const error = new Error(message);
     error.stack = 'Error: ' + message +
@@ -141,28 +143,30 @@ describe('OTel analytics (local dev)', () => {
     await flush();
 
     const expected = [
-      'Failed to load "https://x.example/a.json".',
-      '{"u":"https://x.example/a}',
-      "['https://x.example/a']",
-      '<https://x.example/a>',
-      'see https://x.example/a)b',
-      'Failed (https://x.example/a).',
-      'bad https://x.example/a, retrying',
-      'ids https://x.example/a end',
-      'paren https://x.example/a end',
-      'raw https://x.example/a" end',
-      "single 'https://x.example/a\"' end",
-      'double "https://x.example/a"" end',
-      'ambiguous "https://x.example/a" end',
-      'digits https://x.example/a end',
-      'pair (https://x.example/a)',
+      'Failed to load "https://x.example/a.json?REDACTED".',
+      '{"u":"https://x.example/a?REDACTED}',
+      "['https://x.example/a?REDACTED']",
+      '<https://x.example/a?REDACTED>',
+      'see https://x.example/a)b?REDACTED',
+      'Failed (https://x.example/a?REDACTED).',
+      'bad https://x.example/a?REDACTED, retrying',
+      'ids https://x.example/a?REDACTED end',
+      'paren https://x.example/a?REDACTED end',
+      'raw https://x.example/a?REDACTED" end',
+      "single 'https://x.example/a?REDACTED\"' end",
+      'double "https://x.example/a?REDACTED"" end',
+      'ambiguous "https://x.example/a?REDACTED" end',
+      'digits https://x.example/a?REDACTED end',
+      'pair (https://x.example/a?REDACTED)',
+      'frag https://x.example/a#REDACTED end',
+      'empty https://x.example/a? end',
     ].join(' ');
     const attrs = records[0].attributes;
     expect(attrs['exception.message']).toBe(expected);
     expect(attrs['exception.stacktrace']).toBe('Error: ' + expected +
-      '\n    at f (https://cdn.example/sugar-suite/abc/js/lat.js:1:2)' +
-      '\n    at async h (https://cdn.example/sugar-suite/abc/js/lat.js:5:6)' +
-      '\ng@https://cdn.example/sugar-suite/abc/js/lat.js:7:8');
+      '\n    at f (https://cdn.example/sugar-suite/abc/js/lat.js?REDACTED:1:2)' +
+      '\n    at async h (https://cdn.example/sugar-suite/abc/js/lat.js?REDACTED:5:6)' +
+      '\ng@https://cdn.example/sugar-suite/abc/js/lat.js?REDACTED:7:8');
   });
 
   test('drops exceptions raised by the host page', async () => {

@@ -80,9 +80,10 @@ function getCommonAttributes() {
   };
 }
 
-// Strip query/fragment from every URL in free text. Any character but
+// Redact query/fragment of every URL in free text. Any character but
 // whitespace may belong to a developer-written query (?token="x"), so the
-// query always runs to whitespace; only trailing closing/punctuation
+// query always runs to whitespace (data minimization over fidelity: adjacent
+// compact JSON is lost, marked by ?REDACTED); only trailing closing/punctuation
 // characters are kept, plus :line:col (optional `)`) on stack frame lines
 var URL_WITH_QUERY = /(\b[a-z][\w+.-]*:\/\/[^\s?#]*)([?#]\S*)/gi;
 var POSITION_SUFFIX = /:\d+:\d+\)?$/;
@@ -95,7 +96,9 @@ function stripUrlQueries(text, keepPosition) {
     return text;
   }
   return text.replace(URL_WITH_QUERY, function (match, base, query) {
-    return base + ((keepPosition && query.match(POSITION_SUFFIX)) || query.match(TEXT_SUFFIX))[0];
+    var kept = ((keepPosition && query.match(POSITION_SUFFIX)) || query.match(TEXT_SUFFIX))[0];
+    // OTel semconv redaction marker; nothing to redact if only punctuation follows
+    return kept.length === query.length ? match : base + query.charAt(0) + 'REDACTED' + kept;
   });
 }
 
