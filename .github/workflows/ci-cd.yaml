@@ -12,16 +12,12 @@ on:
   pull_request:
     branches: [main]
 
-env:
-  ASSET_EXTENSIONS: "css,js,map,jpg,jpeg,png,webp,gif,svg,ico,mp4,woff,woff2,ttf,otf,eot"
-
 # Default to least privilege; jobs elevate only when needed.
 permissions:
   contents: read
 
 jobs:
-  # Chart quality gate: lint, render, and (optionally) schema-validate the Helm
-  # chart using the shared reusable workflow.
+  # Chart quality gate: lint, render, and (optionally) schema-validate the Helm chart using the shared reusable workflow.
   helm-lint:
     uses: bcit-tlu/.github/.github/workflows/helm-lint.yaml@main
     permissions:
@@ -30,8 +26,7 @@ jobs:
       chart_glob: "charts/"
       extra_command: bash tests/helm-cdn-rewrite.sh
 
-  # Build, sign, scan, and publish the OCI image using the shared reusable
-  # workflow. This also outputs an RC version for the chart publish step.
+  # Build, sign, scan, and publish the OCI image using the shared reusable workflow. This also outputs an RC version for the chart publish step.
   build-sugar-suite:
     uses: bcit-tlu/.github/.github/workflows/oci-build.yaml@main
     permissions:
@@ -47,10 +42,9 @@ jobs:
       tag_prefix: "v"
     secrets: inherit
 
-  # Package and push the Helm chart for the matching RC image. Runs on main
-  # pushes only; the version comes from the oci-build reusable workflow.
+  # Package and push the Helm chart for the matching RC image. Runs on main pushes only; the version comes from the oci-build reusable workflow.
   helm-publish:
-    needs: [helm-lint, build-sugar-suite, cdn-upload]
+    needs: [helm-lint, build-sugar-suite, build-assets, cdn-upload]
     if: >-
       github.event_name != 'pull_request'
       && needs.build-sugar-suite.outputs.rc_version != ''
@@ -62,82 +56,63 @@ jobs:
     with:
       chart_dir: charts
       version: ${{ needs.build-sugar-suite.outputs.rc_version }}
-      inject_cdn_sha: true
+      cdn_content_ref: ${{ needs.build-assets.outputs.content_hash }}
     secrets: inherit
 
-  # Upload static assets to Azure CDN blob storage.
-  # Only on main; reuses the bcit-tlu/.github reusable workflow.
-
-  # Build the static site locally and rewrite asset URLs for the CDN upload.
-  # The Docker build happens separately in the build-sugar-suite job.
+  # Build the static site, verify dist/ is host-agnostic, and hash the uploaded file set into a content ref (latest channel). The Docker build happens separately in the build-sugar-suite job.
   build-assets:
     if: github.event_name != 'pull_request'
-    runs-on: ubuntu-latest
+    uses: bcit-tlu/.github/.github/workflows/cdn-build-assets.yaml@main
     permissions:
       contents: read
-    outputs:
-      short_sha: ${{ steps.set-sha.outputs.short_sha }}
-      asset_extensions: ${{ steps.set-extensions.outputs.asset_extensions }}
-      destination_prefix: ${{ steps.cdn-rewrite.outputs.destination_prefix }}
-    steps:
-      - uses: actions/checkout@v7
-      - uses: actions/setup-node@v6
-        with:
-          node-version: "24"
-      - run: npm ci
-      - run: npm run build
-      - id: set-sha
-        # Pin --short=7 to match helm-publish's injected cdn.commitSha —
-        # auto-abbrev length varies with clone size and would desync the two.
-        run: echo "short_sha=$(git rev-parse --short=7 HEAD)" >> "$GITHUB_OUTPUT"
-      - id: set-extensions
-        run: echo "asset_extensions=${ASSET_EXTENSIONS}" >> "$GITHUB_OUTPUT"
+    with:
+      repo_name: ${{ github.event.repository.name }}
+      cdn_base_url: ${{ vars.CDN_BASE_URL_LATEST }}
+      asset_extensions: "css,js,map,jpg,jpeg,png,webp,gif,svg,ico,mp4,woff,woff2,ttf,otf,eot"
 
-      # Rewrites asset URLs and emits destination_prefix (resolved by the
-      # shared cdn-resolve-prefix action) for the cdn-upload job.
-      - name: Rewrite asset URLs for CDN upload
-        id: cdn-rewrite
-        uses: bcit-tlu/.github/.github/actions/cdn-rewrite@main
-        with:
-          enabled: "true"
-          cdn_base_url: ${{ vars.CDN_BASE_URL }}
-          repo_name: ${{ github.event.repository.name }}
-          short_sha: ${{ steps.set-sha.outputs.short_sha }}
-          asset_extensions: ${{ env.ASSET_EXTENSIONS }}
-
-      - uses: actions/upload-artifact@v7
-        with:
-          name: dist
-          path: dist/
-
-  # Upload the rewritten dist/ artifacts to Azure CDN under the short-SHA prefix.
+  # Upload dist/ verbatim to the latest CDN account under the content-hash prefix and write the .by-commit/<sha> lookup for release-time promotion. Authenticates via OIDC (UAMI) scoped to the sugar-suite latest container; the 'latest' GitHub Environment is what Azure trusts.
   cdn-upload:
     needs: build-assets
     uses: bcit-tlu/.github/.github/workflows/cdn-upload.yaml@main
     permissions:
       contents: read
+      id-token: write
     with:
       dist_dir: "dist"
       artifact_name: "dist"
       destination_prefix: ${{ needs.build-assets.outputs.destination_prefix }}
-      cdn_account_name: ${{ vars.CDN_ACCOUNT_NAME }}
+      commit_sha: ${{ needs.build-assets.outputs.commit_sha }}
+      cdn_account_name: ${{ vars.CDN_ACCOUNT_NAME_LATEST }}
       repo_name: ${{ github.event.repository.name }}
       asset_extensions: ${{ needs.build-assets.outputs.asset_extensions }}
+      auth_mode: oidc
+      environment: latest
     secrets:
-      CDN_SAS_TOKEN: ${{ secrets.CDN_SAS_TOKEN }}
+      AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID_LATEST }}
+      AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+      AZURE_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
 
-  # Remove old CDN SHA prefixes. Protected SHAs are tracked in
-  # .latest-current, .latest-history, .stable-current, and .stable-history.
+  # Remove old CDN ref prefixes from the latest container. Protected refs are tracked in .latest-current and .latest-history. Same OIDC auth as upload.
   cdn-cleanup:
     needs: [cdn-upload, build-assets]
     if: github.event_name != 'pull_request'
     runs-on: ubuntu-latest
+    environment: latest
     permissions:
       contents: read
+      id-token: write
     steps:
+      - name: Azure login (OIDC)
+        uses: azure/login@v3
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID_LATEST }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+          allow-no-subscriptions: true
+
       - uses: bcit-tlu/.github/.github/actions/cdn-cleanup@main
         with:
-          cdn_account_name: ${{ vars.CDN_ACCOUNT_NAME }}
-          cdn_sas_token: ${{ secrets.CDN_SAS_TOKEN }}
+          cdn_account_name: ${{ vars.CDN_ACCOUNT_NAME_LATEST }}
+          channel: latest
           repo_name: ${{ github.event.repository.name }}
-          latest_sha: ${{ needs.build-assets.outputs.short_sha }}
+          ref: ${{ needs.build-assets.outputs.content_hash }}
