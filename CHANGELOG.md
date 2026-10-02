@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.3.7](https://github.com/bcit-tlu/sugar-suite/compare/v1.3.6...v1.3.7) (2026-10-02)
+
+
+### Bug Fixes
+
+* add OpenTelemetry browser instrumentation implementation plan ([#52](https://github.com/bcit-tlu/sugar-suite/issues/52)) ([7e10eeb](https://github.com/bcit-tlu/sugar-suite/commit/7e10eebf09daff17377ca3c088fe8b0b2f8b96f8))
+
 ## [1.3.6](https://github.com/bcit-tlu/sugar-suite/compare/v1.3.5...v1.3.6) (2026-09-16)
 
 
