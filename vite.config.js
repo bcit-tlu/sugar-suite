@@ -44,7 +44,6 @@ export default defineConfig({
         });
         const analyticsIIFE = analyticsResult.outputFiles.find(f => f.path.endsWith('.js')).text;
         const analyticsMap = JSON.parse(analyticsResult.outputFiles.find(f => f.path.endsWith('.map')).text);
-        analyticsMap.sources = analyticsMap.sources.map(s => s.replace(/^(\.\.\/)+/, '')); // match feature source paths
 
         // process main js features (equivalent to gulp's scripts task)
         const mainJsContent = getModuleContent('source/js/features'); // get concatenated js content
@@ -439,15 +438,17 @@ function generateSourceMap(sourceDir, outputFile) {
 
   const sources = []; // initialize sources array
   const sourcesContent = []; // initialize sources content array
+  // sources resolve relative to the emitted map (dist/<outputFile dir>)
+  const toMapRelative = file => path.relative(path.join('dist', path.dirname(outputFile)), file).replace(/\\/g, '/');
 
   // add jquery source if this is the main features bundle
   if (sourceDir === 'source/js/features') { // if main features directory
-    sources.push('public/js/vendor/jquery-4.0.0.min.js'); // add jquery source
+    sources.push(toMapRelative('public/js/vendor/jquery-4.0.0.min.js')); // add jquery source
     sourcesContent.push(fs.readFileSync('public/js/vendor/jquery-4.0.0.min.js', 'utf8')); // add jquery content
   }
 
   jsFiles.forEach(file => { // iterate through js files
-    sources.push(file.replace(/\\/g, '/')); // normalize paths for source map
+    sources.push(toMapRelative(file)); // normalize paths for source map
     sourcesContent.push(fs.readFileSync(file, 'utf8')); // read source file contents
   });
 
