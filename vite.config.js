@@ -38,9 +38,13 @@ export default defineConfig({
           minify: true,
           target: 'es2020',
           define: { 'process.env.NODE_ENV': '"production"' },
+          sourcemap: 'external',
+          outfile: resolve(__dirname, 'dist/js/lat.js'), // map sources resolve relative to js/lat.js.map
           write: false,
         });
-        const analyticsIIFE = analyticsResult.outputFiles[0].text;
+        const analyticsIIFE = analyticsResult.outputFiles.find(f => f.path.endsWith('.js')).text;
+        const analyticsMap = JSON.parse(analyticsResult.outputFiles.find(f => f.path.endsWith('.map')).text);
+        analyticsMap.sources = analyticsMap.sources.map(s => s.replace(/^(\.\.\/)+/, '')); // match feature source paths
 
         // process main js features (equivalent to gulp's scripts task)
         const mainJsContent = getModuleContent('source/js/features'); // get concatenated js content
@@ -135,7 +139,18 @@ export default defineConfig({
         });
 
         // generate source maps for JS files
-        const mainSourceMap = generateSourceMap('source/js/features', 'js/lat.js');
+        // index map: analytics IIFE section first, features offset by its line count
+        const mainSourceMap = {
+          version: 3,
+          file: 'js/lat.js',
+          sections: [
+            { offset: { line: 0, column: 0 }, map: analyticsMap },
+            {
+              offset: { line: (analyticsIIFE + '\n').split('\n').length - 1, column: 0 },
+              map: generateSourceMap('source/js/features', 'js/lat.js')
+            }
+          ]
+        };
         this.emitFile({
           type: 'asset',
           fileName: 'js/lat.js.map',
