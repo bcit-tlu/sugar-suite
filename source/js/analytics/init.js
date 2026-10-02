@@ -80,15 +80,32 @@ function getCommonAttributes() {
   };
 }
 
-// Strip query/fragment from every URL in free text, keeping a trailing
-// :line:col stack position and trailing `)`/punctuation. URLs end only at
-// characters browsers always percent-encode (whitespace " ' < > `); `)` and
-// punctuation are legal inside URLs, so they end one only when a hard
-// delimiter follows
-var URL_QUERY = /(\b[a-z][\w+.-]*:\/\/[^\s?#"'<>`]*)[?#][^\s"'<>`]*?((?::\d+){1,2})?(?=\)?[.,;:!?]*(?:[\s"'<>`]|$))/gim;
+// Strip query/fragment from every URL in free text. Developer-written URLs can
+// hold raw quotes (?token="x"), so an unquoted query runs to whitespace; a URL
+// opened by a quote or < ends at its closer when outer text follows. A trailing
+// :line:col stack position and closing/punctuation characters are kept
+var URL_WITH_QUERY = /(["'`<]?)(\b[a-z][\w+.-]*:\/\/[^\s?#]*)([?#]\S*)/gi;
+var CLOSER_END = /^[\s.,;:!?)\]}>]?$/;
+var KEPT_SUFFIX = /((?::\d+){1,2})?([)\]}>"'`]*[.,;:!?]*)$/;
 
 function stripUrlQueries(text) {
-  return typeof text === 'string' ? text.replace(URL_QUERY, '$1$2') : text;
+  if (typeof text !== 'string') {
+    return text;
+  }
+  return text.replace(URL_WITH_QUERY, function (match, open, base, rest) {
+    var close = open === '<' ? '>' : open;
+    var end = rest.length;
+    if (close && base.indexOf(close) === -1) {
+      for (var i = rest.indexOf(close); i !== -1; i = rest.indexOf(close, i + 1)) {
+        if (CLOSER_END.test(rest.charAt(i + 1))) {
+          end = i;
+          break;
+        }
+      }
+    }
+    var suffix = rest.slice(0, end).match(KEPT_SUFFIX);
+    return open + base + (suffix[1] || '') + suffix[2] + stripUrlQueries(rest.slice(end));
+  });
 }
 
 // ErrorsInstrumentation listens on window, so drop exceptions raised by the
