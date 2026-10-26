@@ -86,7 +86,7 @@ else
   pass "schemeless cdn.baseUrl fails render"
 fi
 
-# 6. Behavioural: run the rendered initContainer script against a fixture dist containing quoted AND unquoted HTML asset attributes (minified production output) and verify every relative reference is rewritten.
+# 6. Behavioural: run the rendered initContainer script against a fixture dist containing quoted AND unquoted HTML asset attributes (minified production output) and verify every relative AND root-relative reference is rewritten — both branches of the rewrite must stay covered.
 if command -v yq >/dev/null 2>&1; then
   tmp="$(mktemp -d)"
   trap 'rm -rf "${tmp}"' EXIT
@@ -106,10 +106,10 @@ if command -v yq >/dev/null 2>&1; then
 
   mkdir -p "${tmp}/src" "${tmp}/html"
   cat > "${tmp}/src/index.html" <<'EOF'
-<!doctype html><html lang=en><head><link rel=icon type=image/x-icon href=favicon.ico><title>t</title><script defer src=main_bundle.js></script><link rel="stylesheet" href="./style.css"></head><body><img src='./bcit_rev.png'><a href="https://example.org/x.png">ext</a></body></html>
+<!doctype html><html lang=en><head><link rel=icon type=image/x-icon href=/favicon.ico><title>t</title><script defer src=main_bundle.js></script><link rel="stylesheet" href="./style.css"></head><body><img src='./bcit_rev.png'><img src="/bcit_logo.png"><a href="https://example.org/x.png">ext</a></body></html>
 EOF
-  echo 'const a="./bcit_rev.png";' > "${tmp}/src/main_bundle.js"
-  echo 'body{background:url(./bcit_rev.png)}' > "${tmp}/src/style.css"
+  echo 'const a="./bcit_rev.png"; const b="/bcit_logo.png";' > "${tmp}/src/main_bundle.js"
+  echo 'body{background:url(./bcit_rev.png)} a{background:url(/bcit_logo.png)}' > "${tmp}/src/style.css"
 
   sh "${tmp}/rewrite.sh"
 
@@ -125,9 +125,12 @@ EOF
   check_file "${tmp}/html/index.html" 'src="https://cdn.example/bcit-ltc/sugar-suite/abc1234/main_bundle.js"'
   check_file "${tmp}/html/index.html" 'href="https://cdn.example/bcit-ltc/sugar-suite/abc1234/style.css"'
   check_file "${tmp}/html/index.html" "src='https://cdn.example/bcit-ltc/sugar-suite/abc1234/bcit_rev.png'"
+  check_file "${tmp}/html/index.html" 'src="https://cdn.example/bcit-ltc/sugar-suite/abc1234/bcit_logo.png"'
   check_file "${tmp}/html/index.html" 'href="https://example.org/x.png"'
   check_file "${tmp}/html/main_bundle.js" '"https://cdn.example/bcit-ltc/sugar-suite/abc1234/bcit_rev.png"'
+  check_file "${tmp}/html/main_bundle.js" '"https://cdn.example/bcit-ltc/sugar-suite/abc1234/bcit_logo.png"'
   check_file "${tmp}/html/style.css" 'url(https://cdn.example/bcit-ltc/sugar-suite/abc1234/bcit_rev.png)'
+  check_file "${tmp}/html/style.css" 'url(https://cdn.example/bcit-ltc/sugar-suite/abc1234/bcit_logo.png)'
 else
   err "yq required for behavioural test"
 fi

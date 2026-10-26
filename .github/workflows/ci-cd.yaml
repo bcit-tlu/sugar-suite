@@ -71,6 +71,7 @@ jobs:
       asset_extensions: "css,js,map,jpg,jpeg,png,webp,gif,svg,ico,mp4,woff,woff2,ttf,otf,eot"
 
   # Upload dist/ verbatim to the latest CDN account under the content-hash prefix and write the .by-commit/<sha> lookup for release-time promotion. Authenticates via OIDC (UAMI) scoped to the sugar-suite latest container; the 'latest' GitHub Environment is what Azure trusts.
+  # AZURE_CLIENT_ID_LATEST is an environment-scoped secret, but secrets passed by name to a reusable workflow resolve in the *called* job's environment (the cdn-upload job sets environment: latest), so this mapping is correct — the caller having no environment is not a problem. CDN_* and AZURE_TENANT_ID/AZURE_SUBSCRIPTION_ID are org-level vars/secrets, so they resolve at caller scope too.
   cdn-upload:
     needs: build-assets
     uses: bcit-tlu/.github/.github/workflows/cdn-upload.yaml@main

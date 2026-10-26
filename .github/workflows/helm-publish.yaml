@@ -6,11 +6,11 @@ on:
   workflow_dispatch:
     inputs:
       tag_name:
-        description: "Release tag to package and publish (e.g. v1.2.3). Only tags whose commit completed a latest-channel build resolve via .by-commit — for older tags, use content_ref."
+        description: "Release tag to package and publish (e.g. v1.2.3). The tag's chart must use the cdn.contentRef schema — pre-migration tags (cdn.commitSha) are rejected. Only tags whose commit completed a latest-channel build resolve via .by-commit."
         required: true
         type: string
       content_ref:
-        description: "CDN content ref to promote directly, skipping the .by-commit/<sha> lookup (recovery escape hatch — leave empty normally)."
+        description: "CDN content ref to promote directly, skipping the .by-commit/<sha> lookup (recovery escape hatch — leave empty normally). The ref must exist under the repo's prefix in the latest account."
         required: false
         type: string
         default: ""
@@ -21,16 +21,13 @@ permissions:
   id-token: write
 
 jobs:
-  # Resolve the release tag's commit to the content ref its latest-channel build produced (.by-commit/<sha>), then server-side copy that prefix from the latest account to the stable account — no rebuild, no re-upload.
-  # Runs under the 'stable' environment: that UAMI can read the repo's latest container and write its stable container.
-  cdn-promote:
+  # Resolve the release tag to its commit and reject tags whose chart predates the content-ref schema — the publish job injects cdn_content_ref, which cdn.commitSha-era charts can't consume. Runs without an environment so an incompatible tag fails fast instead of waiting on stable approval.
+  resolve-tag:
     runs-on: ubuntu-latest
-    environment: stable
     permissions:
       contents: read
-      id-token: write
     outputs:
-      content_ref: ${{ steps.promote.outputs.content_ref }}
+      sha: ${{ steps.tag-sha.outputs.sha }}
     steps:
       - uses: actions/checkout@v7
         with:
@@ -40,6 +37,25 @@ jobs:
       - id: tag-sha
         run: echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
 
+      - name: Require the content-ref chart schema
+        run: |
+          if ! grep -q 'cdn\.contentRef' charts/templates/deployment.yaml; then
+            echo "::error::${{ inputs.tag_name || github.event.release.tag_name }} uses the pre-migration chart (cdn.commitSha), which this pipeline no longer injects. Cut a patch release from main instead of publishing this tag." >&2
+            exit 1
+          fi
+
+  # Resolve the release tag's commit to the content ref its latest-channel build produced (.by-commit/<sha>), then server-side copy that prefix from the latest account to the stable account — no rebuild, no re-upload.
+  # Runs under the 'stable' environment: that UAMI can read the repo's latest container and write its stable container.
+  cdn-promote:
+    needs: resolve-tag
+    runs-on: ubuntu-latest
+    environment: stable
+    permissions:
+      contents: read
+      id-token: write
+    outputs:
+      content_ref: ${{ steps.promote.outputs.content_ref }}
+    steps:
       - name: Azure login (OIDC)
         uses: azure/login@v3
         with:
@@ -54,7 +70,7 @@ jobs:
           latest_account: ${{ vars.CDN_ACCOUNT_NAME_LATEST }}
           stable_account: ${{ vars.CDN_ACCOUNT_NAME_STABLE }}
           repo_name: ${{ github.event.repository.name }}
-          commit_sha: ${{ steps.tag-sha.outputs.sha }}
+          commit_sha: ${{ needs.resolve-tag.outputs.sha }}
           content_ref: ${{ inputs.content_ref }}
 
   # Package, push, and sign the Helm chart for a release tag. The shared workflow parses the tag, checks out the matching ref, and injects the promoted content ref into values.yaml for CDN immutable paths.
