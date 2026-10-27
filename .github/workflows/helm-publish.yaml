@@ -22,16 +22,20 @@ permissions:
 
 jobs:
   # Resolve the release tag to its commit and reject tags whose chart predates the content-ref schema — the publish job injects cdn_content_ref, which cdn.commitSha-era charts can't consume. Runs without an environment so an incompatible tag fails fast instead of waiting on stable approval.
+  # The tag name only ever flows through env vars — never interpolated into a run: block (tag names can contain shell metacharacters).
   resolve-tag:
     runs-on: ubuntu-latest
     permissions:
       contents: read
+      actions: read # poll the tag commit's ci-cd run
+    env:
+      TAG_NAME: ${{ inputs.tag_name || github.event.release.tag_name }}
     outputs:
       sha: ${{ steps.tag-sha.outputs.sha }}
     steps:
       - uses: actions/checkout@v7
         with:
-          ref: ${{ inputs.tag_name || github.event.release.tag_name }}
+          ref: ${{ env.TAG_NAME }}
           persist-credentials: false
 
       - id: tag-sha
@@ -40,9 +44,33 @@ jobs:
       - name: Require the content-ref chart schema
         run: |
           if ! grep -q 'cdn\.contentRef' charts/templates/deployment.yaml; then
-            echo "::error::${{ inputs.tag_name || github.event.release.tag_name }} uses the pre-migration chart (cdn.commitSha), which this pipeline no longer injects. Cut a patch release from main instead of publishing this tag." >&2
+            echo "::error::${TAG_NAME} uses the pre-migration chart (cdn.commitSha), which this pipeline no longer injects. Cut a patch release from main instead of publishing this tag." >&2
             exit 1
           fi
+
+      # release-please fires the release on the same push that starts the tag commit's latest-channel build: gate on that ci-cd run so a CI failure surfaces here with a clear message instead of cdn-promote's blind .by-commit retry timing out. (cdn-promote still retries the lookup itself as a fallback.)
+      - name: Gate on the tag commit's latest-channel upload
+        if: inputs.content_ref == ''
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SHA: ${{ steps.tag-sha.outputs.sha }}
+        run: |
+          for i in $(seq 1 40); do
+            out="$(gh api "repos/${GITHUB_REPOSITORY}/actions/workflows/ci-cd.yaml/runs?head_sha=${SHA}&event=push&per_page=1" -q '.workflow_runs[0] | "\(.status) \(.conclusion)"' || true)"
+            status="${out%% *}"; conclusion="${out##* }"
+            if [ "${status}" = "completed" ]; then
+              if [ "${conclusion}" = "success" ]; then
+                echo "ci-cd for ${SHA} succeeded — the .by-commit lookup is written."
+                exit 0
+              fi
+              echo "::error::ci-cd for ${SHA} finished '${conclusion}' — no .by-commit lookup will appear. Fix CI and re-run, or dispatch manually with content_ref." >&2
+              exit 1
+            fi
+            echo "ci-cd for ${SHA} is '${status:-unknown}' (attempt ${i}/40) — waiting 30s..."
+            sleep 30
+          done
+          echo "::error::Timed out after 20m waiting for the ci-cd run for ${SHA}; the latest-channel upload for this commit has not completed." >&2
+          exit 1
 
   # Resolve the release tag's commit to the content ref its latest-channel build produced (.by-commit/<sha>), then server-side copy that prefix from the latest account to the stable account — no rebuild, no re-upload.
   # Runs under the 'stable' environment: that UAMI can read the repo's latest container and write its stable container.
