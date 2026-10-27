@@ -40,3 +40,6 @@ app-chart/
 # Logs
 *.log
 logs/
+
+# Local git worktrees (convention: <repo>/.worktrees/<name>)
+.worktrees/
