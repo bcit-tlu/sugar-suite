@@ -179,6 +179,7 @@ function init() {
   logs.setGlobalLoggerProvider(_loggerProvider);
 
   registerInstrumentations({
+    loggerProvider: _loggerProvider,
     instrumentations: [new ErrorsInstrumentation()],
   });
 
