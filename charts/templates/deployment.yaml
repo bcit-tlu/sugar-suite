@@ -49,7 +49,8 @@ spec:
             - |
               set -e
               echo "Copying original assets to shared volume..."
-              cp -a /usr/share/nginx/html/. /html/
+              # No -a: uid 101 can't preserve ownership (EPERM noise) and served files only need read bits.
+              cp -R /usr/share/nginx/html/. /html/
 
               CDN_BASE_URL="{{ required "cdn.baseUrl is required when cdn.enabled is true" .Values.cdn.baseUrl }}"
               CDN_REF="{{ required "cdn.contentRef is required when cdn.enabled is true (injected by CI at chart package time)" .Values.cdn.contentRef }}"
@@ -223,17 +224,58 @@ spec:
                 ' "$f"
               done
 
-              # Verify the rewrite actually injected the immutable CDN URL into files that contain asset references.
-              # Vendor files that reference no assets do not need rewriting, so skip them.
-              asset_ref_regex="\.(${EXT_PATTERN})([#?][^\"'\)>[:space:]]*)?([\"'\)>[:space:]]|$)"
-              missing_files=$(find /html -type f \( -name '*.html' -o -name '*.css' -o -name '*.js' \) | while read -r f; do
-                if grep -qE "${asset_ref_regex}" "$f" && ! grep -qF "${CDN_URL}/" "$f"; then
-                  printf '%s\n' "$f"
+              # Regenerate precompressed sidecars (.css/.js.gz from vite-plugin-compression2):
+              # gzip_static serves them to gzip-capable clients, and stale copies would bypass the rewrite.
+              # Plain gzip -c for BusyBox compatibility; bytes are pod-local, no determinism requirement.
+              find /html -type f \( -name '*.css' -o -name '*.js' \) | while read -r f; do
+                if [ -f "${f}.gz" ]; then
+                  gzip -c "$f" > "${f}.gz"
                 fi
+              done
+
+              # Verify no rewritable reference survived: scan each file with the same grammar shapes
+              # the rewriters use and fail on any remaining relative path. Substring matches in prose
+              # or comments (e.g. "Moment.js" in alert text, "// thanks to less.js", sourceMappingURL)
+              # don't match the grammar, so vendor files with no real asset refs pass.
+              unrewritten=$(find /html -type f \( -name '*.html' -o -name '*.css' -o -name '*.js' \) | while read -r f; do
+                case "$f" in
+                  *.html) kind=html ;;
+                  *.css)  kind=css ;;
+                  *.js)   kind=js ;;
+                esac
+                VERIFY_KIND="$kind" perl -ne '
+                  my $cdn  = $ENV{CDN_URL}      // q{};
+                  my $exts = $ENV{EXT_PATTERN}  // q{};
+                  my $kind = $ENV{VERIFY_KIND}  // q{};
+                  my $file = $ARGV;
+
+                  my $is_abs = sub {
+                    my ($p) = @_;
+                    $p =~ s{^\s+|\s+$}{}g;
+                    return 1 if $p =~ m{://} || ($cdn ne q{} && index($p, $cdn) == 0);
+                    return $p =~ m{^(?:[a-zA-Z][a-zA-Z0-9+.+-]*:|//|data:)}i;
+                  };
+
+                  my @refs;
+                  if ($kind eq q{html}) {
+                    while (/(?:src|href|data-src)\s*=\s*(?:(["\x27])([^"\x27]+\.(?:$exts)(?:[#?][^"\x27]*)?)\2|([^\s"\x27=<>`]+\.(?:$exts)(?:[#?][^\s"\x27<>`]*)?))/gi) {
+                      push @refs, defined $2 ? $2 : $3;
+                    }
+                  } elsif ($kind eq q{css}) {
+                    while (/url\(\s*(["\x27]?)([^"\x27\)]+\.(?:$exts)(?:[#?][^"\x27\)]*)?)\1\s*\)/gi) { push @refs, $2; }
+                    while (/\@import\s+(?:url\()?(["\x27]?)([^"\x27\)]+\.(?:$exts)(?:[#?][^"\x27\)]*)?)\1\)?/gi) { push @refs, $2; }
+                  } else {
+                    while (/(["\x27])([^"\x27]+?\.(?:$exts)(?:[#?][^"\x27]*)?)\1/gi) { push @refs, $2; }
+                  }
+                  for my $r (@refs) {
+                    next if $is_abs->($r);
+                    print "$file: $r\n";
+                  }
+                ' "$f"
               done)
-              if [ -n "${missing_files}" ]; then
-                echo "ERROR: rewrite did not inject ${CDN_URL}/ into the following files:" >&2
-                echo "${missing_files}" >&2
+              if [ -n "${unrewritten}" ]; then
+                echo "ERROR: relative asset references not rewritten to ${CDN_URL}/:" >&2
+                echo "${unrewritten}" >&2
                 exit 1
               fi
 

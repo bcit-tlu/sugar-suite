@@ -37,7 +37,8 @@ check 'name: cdn-rewrite'
 check 'CDN_BASE_URL="https://cdn.example/bcit-ltc"'
 check 'CDN_REF="abc1234"'
 check 'CDN_URL="${CDN_BASE_URL}/sugar-suite/${CDN_REF}"'
-check 'rewrite did not inject'
+check 'relative asset references not rewritten to'
+check 'gzip -c "$f" > "${f}.gz"'
 
 # 2a. Resource requests and limits render for the cdn-rewrite initContainer.
 # Extract just the initContainer block so the checks don't match the nginx container's identical resource values.
@@ -86,8 +87,8 @@ else
   pass "schemeless cdn.baseUrl fails render"
 fi
 
-# 6. Behavioural: run the rendered initContainer script against a fixture dist containing quoted AND unquoted HTML asset attributes (minified production output) and verify every relative AND root-relative reference is rewritten — both branches of the rewrite must stay covered.
-if command -v yq >/dev/null 2>&1; then
+# 6a. Behavioural: run the rendered initContainer script against a fixture dist containing quoted AND unquoted HTML asset attributes (minified production output) and verify every relative AND root-relative reference is rewritten — both branches of the rewrite must stay covered. A stale precompressed .gz sidecar must be regenerated from the rewritten content (gzip_static would otherwise serve the originals).
+if command -v yq >/dev/null 2>&1 && command -v gzip >/dev/null 2>&1; then
   tmp="$(mktemp -d)"
   trap 'rm -rf "${tmp}"' EXIT
 
@@ -110,6 +111,8 @@ if command -v yq >/dev/null 2>&1; then
 EOF
   echo 'const a="./bcit_rev.png"; const b="/bcit_logo.png";' > "${tmp}/src/main_bundle.js"
   echo 'body{background:url(./bcit_rev.png)} a{background:url(/bcit_logo.png)}' > "${tmp}/src/style.css"
+  # Stale precompressed sidecar, as vite-plugin-compression2 emits at build time
+  gzip -c "${tmp}/src/style.css" > "${tmp}/src/style.css.gz"
 
   sh "${tmp}/rewrite.sh"
 
@@ -131,8 +134,44 @@ EOF
   check_file "${tmp}/html/main_bundle.js" '"https://cdn.example/bcit-ltc/sugar-suite/abc1234/bcit_logo.png"'
   check_file "${tmp}/html/style.css" 'url(https://cdn.example/bcit-ltc/sugar-suite/abc1234/bcit_rev.png)'
   check_file "${tmp}/html/style.css" 'url(https://cdn.example/bcit-ltc/sugar-suite/abc1234/bcit_logo.png)'
+  if gzip -dc "${tmp}/html/style.css.gz" | grep -qF 'url(https://cdn.example/bcit-ltc/sugar-suite/abc1234/bcit_rev.png)'; then
+    pass "style.css.gz regenerated from rewritten content"
+  else
+    err "style.css.gz still holds pre-rewrite content (gzip_static would bypass the CDN)"
+  fi
+
+  # 6b. Regression: vendor files whose only extension-like substrings live in comments or prose
+  # (alert text, acknowledgements, sourceMappingURL) must not trip the post-rewrite verification
+  # — these shipped in js/vendor/ and failed the rollout before verification became grammar-aware.
+  tmp2="$(mktemp -d)"
+  trap 'rm -rf "${tmp}" "${tmp2}"' EXIT
+
+  helm template t "${CHART_DIR}" \
+    --set cdn.enabled=true \
+    --set cdn.baseUrl=https://cdn.example/bcit-ltc \
+    --set cdn.contentRef=abc1234 \
+    --set 'cdn.assetExtensions={js,map}' \
+    --show-only templates/deployment.yaml \
+    | yq -r '.spec.template.spec.initContainers[0].args[0]' > "${tmp2}/rewrite.sh"
+  sed -e "s#/usr/share/nginx/html#${tmp2}/src#g" -e "s#/html#${tmp2}/html#g" \
+    "${tmp2}/rewrite.sh" > "${tmp2}/rewrite.sh.new" && mv "${tmp2}/rewrite.sh.new" "${tmp2}/rewrite.sh"
+
+  mkdir -p "${tmp2}/src" "${tmp2}/html"
+  cat > "${tmp2}/src/vendor_note.js" <<'EOF'
+// Thanks to less.js for some of the basics (see <https://github.com/cloudhead/less.js/blob/master/lib/less/functions.js> and jquery.xcolor.js)
+alert("DataTables warning: Formatted date without Moment.js or Luxon - https://example.test/tn/17");
+//# sourceMappingURL=vendor_note.js.map
+EOF
+
+  sh "${tmp2}/rewrite.sh"
+
+  if grep -qF 'https://cdn.example/bcit-ltc/sugar-suite/abc1234' "${tmp2}/html/vendor_note.js"; then
+    err "vendor_note.js (comment/prose refs only) should not gain CDN URLs"
+  else
+    pass "vendor_note.js (comment/prose refs only) passes verification unrewritten"
+  fi
 else
-  err "yq required for behavioural test"
+  err "yq and gzip required for behavioural test"
 fi
 
 exit "${fail}"
