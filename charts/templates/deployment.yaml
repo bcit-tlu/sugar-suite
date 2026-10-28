@@ -224,6 +224,15 @@ spec:
                 ' "$f"
               done
 
+              # Regenerate precompressed sidecars (.css/.js.gz from vite-plugin-compression2):
+              # gzip_static serves them to gzip-capable clients, and stale copies would bypass the rewrite.
+              # Plain gzip -c for BusyBox compatibility; bytes are pod-local, no determinism requirement.
+              find /html -type f \( -name '*.css' -o -name '*.js' \) | while read -r f; do
+                if [ -f "${f}.gz" ]; then
+                  gzip -c "$f" > "${f}.gz"
+                fi
+              done
+
               # Verify no rewritable reference survived: scan each file with the same grammar shapes
               # the rewriters use and fail on any remaining relative path. Substring matches in prose
               # or comments (e.g. "Moment.js" in alert text, "// thanks to less.js", sourceMappingURL)
