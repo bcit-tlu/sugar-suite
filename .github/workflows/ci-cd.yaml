@@ -45,6 +45,9 @@ jobs:
       image_name: sugar-suite
       context: .
       tag_prefix: "v"
+      # PR builds publish sha-<head>/pr-<n> images for the flux-fleet-v2
+      # preview environment (label a PR `preview`).
+      push_pr_images: true
     secrets: inherit
 
   # Package and push the Helm chart for the matching RC image. Runs on main
