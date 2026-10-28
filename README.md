@@ -30,6 +30,30 @@ docker compose -f docker-compose.prod.yml up --build
 # open http://localhost:8080
 ```
 
+### Updating dependencies
+
+After changing `dependencies` in `package.json`, regenerate `package-lock.json` inside the builder image rather than with your local npm. `packageManager` is pinned to the npm bundled in the Dockerfile's `node:` image, and Renovate resolves with the same — a different local npm produces lockfile drift.
+
+```bash
+# image tag must match the builder stage in Dockerfile (node X.Y.Z-alpineA.B)
+docker run --rm -v "${PWD}:/app" -w /app node:24.22.1-alpine3.24 npm install --package-lock-only
+
+# on Windows (Git Bash / MSYS2 / UCRT64) — MSYS rewrites /app to a Windows path;
+# suppress conversion and pass the mount source as a Windows path
+MSYS_NO_PATHCONV=1 MSYS2_ARG_CONV_EXCL='*' docker run --rm -v "$(pwd -W):/app" -w /app node:24.22.1-alpine3.24 npm install --package-lock-only
+```
+
+The production preview (`docker compose -f docker-compose.prod.yml up --build`) runs `npm ci` in the builder stage, so it doubles as the lockfile reproducibility check — no separate `npm ci` needed. Still run `npm test`: the jest analytics tests eval the bundled OTel code and catch API breaks a clean build can't see.
+
+If you don't install devDependencies locally, run the tests in the builder image instead. The anonymous volume keeps the container's `node_modules` off your working tree:
+
+```bash
+docker run --rm -v "${PWD}:/app" -v /app/node_modules -w /app node:24.22.1-alpine3.24 sh -c "npm ci && npm test"
+
+# on Windows (Git Bash / MSYS2 / UCRT64)
+MSYS_NO_PATHCONV=1 MSYS2_ARG_CONV_EXCL='*' docker run --rm -v "$(pwd -W):/app" -v /app/node_modules -w /app node:24.22.1-alpine3.24 sh -c "npm ci && npm test"
+```
+
 ## Production (local)
 
 To build and run the production image locally:

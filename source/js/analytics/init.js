@@ -1,4 +1,4 @@
-import { logs, SeverityNumber } from '@opentelemetry/api-logs';
+import { logs, SeverityNumber } from '@opentelemetry/api';
 import {
   LoggerProvider,
   BatchLogRecordProcessor,
@@ -142,8 +142,8 @@ function createLoggerProvider() {
 
   // Dev prints to console; prod batches to the public collector
   var processor = isProduction()
-    ? new BatchLogRecordProcessor(new OTLPLogExporter({ url: LOGS_ENDPOINT }))
-    : new SimpleLogRecordProcessor(new ConsoleLogRecordExporter());
+    ? new BatchLogRecordProcessor({ exporter: new OTLPLogExporter({ url: LOGS_ENDPOINT }) })
+    : new SimpleLogRecordProcessor({ exporter: new ConsoleLogRecordExporter() });
 
   return new LoggerProvider({ resource, processors: [sugarSuiteErrorsOnly(processor)] });
 }
@@ -179,6 +179,7 @@ function init() {
   logs.setGlobalLoggerProvider(_loggerProvider);
 
   registerInstrumentations({
+    loggerProvider: _loggerProvider,
     instrumentations: [new ErrorsInstrumentation()],
   });
 
