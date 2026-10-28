@@ -1,7 +1,7 @@
 (function ($) {
 	var $dataTables = $("table.data-table");
-	var scriptURL = "/js/vendor/dataTables-2.3.4.min.js";
-	var cssURL = "/css/vendor/dataTables-2.3.4.min.css";
+	var scriptURL = "../js/vendor/dataTables-2.3.4.min.js";
+	var cssURL = "../css/vendor/dataTables-2.3.4.min.css";
 	
 	if ($dataTables.length) {
 		// Load DataTables from local file

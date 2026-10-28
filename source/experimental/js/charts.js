@@ -52,7 +52,7 @@
 		// Load Plotly from local file
 		if (typeof Plotly === 'undefined') {
 			const script = document.createElement('script');
-			script.src = '/js/vendor/plotly-3.1.1.min.js';
+			script.src = '../js/vendor/plotly-3.1.1.min.js';
 			script.onload = function() {
 				buildCharts();
 			};
