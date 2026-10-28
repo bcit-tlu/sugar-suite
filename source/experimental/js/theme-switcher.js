@@ -13,7 +13,7 @@
 		"custom/transportation/transportation.css"
 	];
 	
-	var $stylesheet = $("head link[href*='/css/']").not("[href*='/experimental.css']");
+	var $stylesheet = $("head link[href*='/css/']").not("[href*='experimental.css']");
 	var primaryStylesheet = parseStylesheetPath($stylesheet.attr("href"));
 	var prefs;
 	var storageKey = "bcit-learner-prefs";
