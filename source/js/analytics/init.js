@@ -71,12 +71,30 @@ function stripUrl(url) {
   return url ? url.split(/[?#]/)[0] : '';
 }
 
+// document.currentScript during initial eval is the <script> that loaded lat.js.
+// Its URL identifies which host served the asset and, for CDN deliveries, which content ref (/sugar-suite/<8-16-hex>/ path).
+// Empty if injected dynamically or URL parsing fails.
+var _scriptSrc = document.currentScript ? document.currentScript.src : '';
+var _assetHost = '';
+var _assetBase = '';
+try {
+  if (_scriptSrc) {
+    var _u = new URL(_scriptSrc);
+    _assetHost = _u.host;
+    var _m = _u.pathname.match(/(^|\/)sugar-suite\/([0-9a-f]{8,16})\//);
+    if (_m) { _assetBase = _u.origin + _u.pathname.slice(0, _m.index + _m[0].length); }
+  }
+} catch (e) { /* leave attributes empty */ }
+
 function getCommonAttributes() {
   return {
     'session.id': getSessionId(),
     'user_agent': navigator.userAgent,
     'screen_resolution': screen.width + 'x' + screen.height,
     'referrer': stripUrl(document.referrer),
+    'page.host': window.location.host,
+    'asset.host': _assetHost,
+    'asset.base': _assetBase,
   };
 }
 
