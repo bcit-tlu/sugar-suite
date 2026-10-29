@@ -71,10 +71,9 @@ function stripUrl(url) {
   return url ? url.split(/[?#]/)[0] : '';
 }
 
-// document.currentScript during initial eval is the <script> that loaded
-// lat.js — its URL identifies which host served the asset and, for CDN
-// deliveries, which content ref (/<repo>/<12-hex>/ path). Empty if
-// injected dynamically or URL parsing fails.
+// document.currentScript during initial eval is the <script> that loaded lat.js.
+// Its URL identifies which host served the asset and, for CDN deliveries, which content ref (/sugar-suite/<8-16-hex>/ path).
+// Empty if injected dynamically or URL parsing fails.
 var _scriptSrc = document.currentScript ? document.currentScript.src : '';
 var _assetHost = '';
 var _assetBase = '';
