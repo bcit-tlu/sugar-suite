@@ -82,8 +82,8 @@ try {
   if (_scriptSrc) {
     var _u = new URL(_scriptSrc);
     _assetHost = _u.host;
-    var _m = _u.pathname.match(/^\/sugar-suite\/([0-9a-f]{8,16})\//);
-    if (_m) { _assetBase = _u.origin + _u.pathname.slice(0, _u.pathname.indexOf(_m[1]) + _m[1].length + 1); }
+    var _m = _u.pathname.match(/(^|\/)sugar-suite\/([0-9a-f]{8,16})\//);
+    if (_m) { _assetBase = _u.origin + _u.pathname.slice(0, _m.index + _m[0].length); }
   }
 } catch (e) { /* leave attributes empty */ }
 
