@@ -1,5 +1,16 @@
 # Changelog
 
+## [1.3.7](https://github.com/bcit-tlu/sugar-suite/compare/v1.3.6...v1.3.7) (2026-11-02)
+
+
+### Bug Fixes
+
+* add OpenTelemetry browser instrumentation implementation plan ([#52](https://github.com/bcit-tlu/sugar-suite/issues/52)) ([7e10eeb](https://github.com/bcit-tlu/sugar-suite/commit/7e10eebf09daff17377ca3c088fe8b0b2f8b96f8))
+* **cdn:** cdn-rewrite initContainer fails rollout on vendor JS false positives ([#118](https://github.com/bcit-tlu/sugar-suite/issues/118)) ([85e268f](https://github.com/bcit-tlu/sugar-suite/commit/85e268f423bab9a8c8a934eb61f3a2f2f6e1f813))
+* **cdn:** make experimental asset refs relative for host-agnostic dist ([#116](https://github.com/bcit-tlu/sugar-suite/issues/116)) ([967d6a1](https://github.com/bcit-tlu/sugar-suite/commit/967d6a1a8a0814d0eb667c888b6b511984f49f62))
+* migrate CDN workflows to OIDC two-account model ([#109](https://github.com/bcit-tlu/sugar-suite/issues/109)) ([8344722](https://github.com/bcit-tlu/sugar-suite/commit/8344722715f8eb0cc419c96c46003fb10d160409))
+* tag beacon events with page host and CDN asset base ([#120](https://github.com/bcit-tlu/sugar-suite/issues/120)) ([0bab258](https://github.com/bcit-tlu/sugar-suite/commit/0bab258d3c395827e5d82b15896cf5e0f5a7149d))
+
 ## [1.3.6](https://github.com/bcit-tlu/sugar-suite/compare/v1.3.5...v1.3.6) (2026-09-16)
 
 
