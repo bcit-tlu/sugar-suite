@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.3.8](https://github.com/bcit-tlu/sugar-suite/compare/v1.3.7...v1.3.8) (2026-11-03)
+
+
+### Bug Fixes
+
+* retrigger CDN upload ([#122](https://github.com/bcit-tlu/sugar-suite/issues/122)) ([d8214b2](https://github.com/bcit-tlu/sugar-suite/commit/d8214b28ab9c227994af239f4a9f39c8b7a87823))
+
 ## [1.3.7](https://github.com/bcit-tlu/sugar-suite/compare/v1.3.6...v1.3.7) (2026-11-02)
 
 
