@@ -211,7 +211,7 @@ export default defineConfig({
       }
     },
     // pre-compress static assets (build-only by default; nginx serves with gzip_static)
-    // brotli is intentionally omitted: the nginxinc/nginx-unprivileged image lacks the brotli module
+    // brotli is intentionally omitted: the nginx/nginx-unprivileged image lacks the brotli module
     compression({
       algorithms: ['gzip'], // gzip only for now
       threshold: 512, // skip files smaller than 512 bytes

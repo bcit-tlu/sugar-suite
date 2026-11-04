@@ -94,7 +94,7 @@ Reusable workflows live in `bcit-tlu/.github/.github/workflows/`: `oci-build.yam
 
 ### Container/runtime
 
-- Multi-stage Dockerfile: builder (`node:24-alpine`) → runtime (`nginxinc/nginx-unprivileged`)
+- Multi-stage Dockerfile: builder (`node:24-alpine`) → runtime (`nginx/nginx-unprivileged`; `nginxinc/` repo is retired)
 - Runtime config: `conf.d/default.conf` (static asset caching + structured logs)
 - Compose files:
   - `docker-compose.yml` — local dev (`vite preview` on port `9000`)
