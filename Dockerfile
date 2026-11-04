@@ -13,7 +13,8 @@ RUN npm run build
 
 
 # Runtime stage
-FROM nginxinc/nginx-unprivileged:alpine3.24-perl
+# -perl variant required: the cdn-rewrite initContainer runs perl from this image
+FROM nginx/nginx-unprivileged:stable-alpine3.24-perl
 
 LABEL maintainer=courseproduction@bcit.ca
 LABEL org.opencontainers.image.source="https://github.com/bcit-tlu/sugar-suite"
