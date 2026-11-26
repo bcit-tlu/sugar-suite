@@ -39,7 +39,7 @@ describe('Checklist Component', () => {
     expect(revealedContent.querySelector('.quiz')).toHaveTextContent('After submitting your assignment, please take the Week 2 quiz.');
   });
 
-  test('should open accordion panels after empty-marker checklist initialization', () => {
+  test('should open accordion panels after empty-marker checklist initialization', async () => {
     eval(checklistCode);
     eval(accordionCode);
 
@@ -49,11 +49,14 @@ describe('Checklist Component', () => {
 
     expect(buttons).toHaveLength(2);
     expect(panels).toHaveLength(2);
+    expect(panels[0]).not.toBeVisible();
 
     buttons[0].click();
+    await $(panels[0]).promise();
 
     expect(buttons[0]).toHaveClass('open');
     expect(buttons[0]).toHaveAttribute('aria-pressed', 'true');
     expect(panels[0]).toHaveClass('open');
+    expect(panels[0]).toBeVisible();
   });
 });
