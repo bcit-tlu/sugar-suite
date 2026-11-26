@@ -4,6 +4,15 @@ const path = require('path');
 const knowledgeCheckCode = fs.readFileSync(path.join(__dirname, '../source/js/features/knowledge-check.js'), 'utf8');
 
 describe('Knowledge Check matching', () => {
+  const pairs = [
+    ['Salt & pepper', 'Seasoning'],
+    ['Bread', 'Mac & cheese'],
+    ['Tea', 'Biscuits'],
+    ['5 < 6 > 4', '"Quoted" & \'single\''],
+    ['Crème brûlée', 'Déjà vu 😀'],
+    ['Literal &amp; text', 'Entity'],
+  ];
+
   beforeEach(() => {
     $.fx.off = true;
     document.body.innerHTML = `
@@ -26,15 +35,7 @@ describe('Knowledge Check matching', () => {
     eval(knowledgeCheckCode);
   });
 
-  test('marks correct answers containing special characters as correct', () => {
-    const pairs = [
-      ['Salt & pepper', 'Seasoning'],
-      ['Bread', 'Mac & cheese'],
-      ['Tea', 'Biscuits'],
-      ['5 < 6 > 4', '"Quoted" & \'single\''],
-      ['Crème brûlée', 'Déjà vu 😀'],
-      ['Literal &amp; text', 'Entity'],
-    ];
+  function submitMatches(matches) {
     const leftIndexes = {};
 
     $('.matchAns li').each(function (index) {
@@ -43,14 +44,28 @@ describe('Knowledge Check matching', () => {
 
     $('.matching li').each(function () {
       const right = $(this).find('label').text();
-      const pair = pairs.find((item) => item[1] === right);
+      const pair = matches.find((item) => item[1] === right);
       $(this).find('input').val(leftIndexes[pair[0]]);
     });
 
     $('form').trigger('submit');
+  }
+
+  test('marks correct answers containing special characters as correct', () => {
+    submitMatches(pairs);
 
     expect($('.matching .correct')).toHaveLength(pairs.length);
     expect($('.matching .incorrect')).toHaveLength(0);
     expect($('.score').text()).toBe(`Score: ${pairs.length}/${pairs.length}`);
+  });
+
+  test('marks wrong matches as incorrect', () => {
+    const wrongMatches = pairs.map((pair, index) => [pairs[(index + 1) % pairs.length][0], pair[1]]);
+
+    submitMatches(wrongMatches);
+
+    expect($('.matching .correct')).toHaveLength(0);
+    expect($('.matching .incorrect')).toHaveLength(pairs.length);
+    expect($('.score').text()).toBe(`Score: 0/${pairs.length}`);
   });
 });
