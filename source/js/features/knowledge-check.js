@@ -813,7 +813,7 @@
                     $pairs.each(function () {
                         var text = $(this).text();
                         var pair = text.split("=");
-                        pairs.push([(pair.shift() ?? "").trim(), pair.join("=").trim()]);
+                        pairs.push([$("<div>").text((pair.shift() ?? "").trim()).html(), $("<div>").text(pair.join("=").trim()).html()]);
                     });
                     $lastList.remove();
                     data.pairs = pairs;
