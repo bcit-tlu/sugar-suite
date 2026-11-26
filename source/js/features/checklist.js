@@ -60,7 +60,7 @@
                     var contentToShow = fullLiContent.slice($(this).index(), fullLiContent.length).clone();
                     contentToShow[0].innerHTML = contentToShow[0].innerHTML.trim().replace(/^@/, "");
                     if(contentToShow[0].innerHTML === "") { // If no text after @, remove <p>
-                        contentToShow.splice(0,1);
+                        contentToShow = contentToShow.slice(1);
                     }
                     $li.append(contentToShow);
                     $("<div class='temp'>").insertBefore($(this));
