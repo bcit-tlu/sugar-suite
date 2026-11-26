@@ -36,6 +36,6 @@
     "jest": "^30.5.2",
     "jest-environment-jsdom": "^30.5.2",
     "@testing-library/dom": "^10.4.2",
-    "@testing-library/jest-dom": "^7.0.1"
+    "@testing-library/jest-dom": "^8.0.0"
   }
 }
